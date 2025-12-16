@@ -1,5 +1,9 @@
 from django.db import models
 
+
+# =========================
+# PROFESIONES
+# =========================
 class Profession(models.Model):
     name = models.CharField(max_length=100, unique=True)
 
@@ -7,8 +11,12 @@ class Profession(models.Model):
         return self.name
 
 
+# =========================
+# ITEMS
+# =========================
 class Item(models.Model):
     name = models.CharField(max_length=255, unique=True)
+    blizzard_id = models.IntegerField(unique=True)
     profession = models.ForeignKey(
         Profession,
         null=True,
@@ -20,6 +28,9 @@ class Item(models.Model):
         return self.name
 
 
+# =========================
+# MATERIALES
+# =========================
 class Material(models.Model):
     name = models.CharField(max_length=255, unique=True)
 
@@ -36,6 +47,9 @@ class ItemMaterial(models.Model):
         unique_together = ("item", "material")
 
 
+# =========================
+# CONNECTED REALMS
+# =========================
 class ConnectedRealm(models.Model):
     blizzard_id = models.IntegerField(unique=True)
     name = models.CharField(max_length=100)
@@ -45,33 +59,39 @@ class ConnectedRealm(models.Model):
         return self.name
 
 
+# =========================
+# SNAPSHOT DE PRECIOS
+# =========================
 class ItemPriceSnapshot(models.Model):
     item = models.ForeignKey(Item, on_delete=models.CASCADE)
+    realm = models.ForeignKey(ConnectedRealm, on_delete=models.CASCADE)
 
+    min_price = models.BigIntegerField()
     quantity = models.PositiveIntegerField(default=0)
 
-    estimated_sell_price = models.DecimalField(
-        max_digits=12, decimal_places=2
-    )
+    created_at = models.DateTimeField(auto_now_add=True)
 
-    best_sell_realm = models.ForeignKey(
+    class Meta:
+        unique_together = ("item", "realm", "created_at")
+
+
+# =========================
+# RESULTADO DE ARBITRAJE
+# =========================
+class ArbitrageResult(models.Model):
+    item = models.ForeignKey(Item, on_delete=models.CASCADE)
+
+    buy_realm = models.ForeignKey(
         ConnectedRealm,
-        null=True,
-        blank=True,
-        related_name="best_sells",
-        on_delete=models.SET_NULL
+        related_name="buy_arbitrages",
+        on_delete=models.CASCADE
     )
 
-    best_buy_realm = models.ForeignKey(
+    sell_realm = models.ForeignKey(
         ConnectedRealm,
-        null=True,
-        blank=True,
-        related_name="best_buys",
-        on_delete=models.SET_NULL
+        related_name="sell_arbitrages",
+        on_delete=models.CASCADE
     )
 
-    profit = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
-    )
-
+    profit = models.BigIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
