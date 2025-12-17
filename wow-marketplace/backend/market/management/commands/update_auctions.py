@@ -167,26 +167,34 @@ def min_buyout_by_realm(all_auctions, item_id):
 
 def analyze_arbitrage(prices):
     if not prices:
-        return None, None, 0
+        return None, None, None, 0
 
     buy_realm = min(prices, key=prices.get)
     buy_price = prices[buy_realm]
 
     best_target = None
     best_profit = 0
+    best_sell_price = None
 
     for realm in PRIMARY_REALMS:
         if realm in prices:
-            sell_price = prices[realm] * 0.95
-            profit = sell_price - buy_price
+            sell_price = prices[realm]
+
+            raw_profit = sell_price - buy_price
+            profit = raw_profit * 0.95  # ✅ AH cut aplicado al profit
+
             if profit > best_profit:
                 best_profit = profit
                 best_target = realm
+                best_sell_price = sell_price
 
     if best_profit < 1000:
-        return buy_realm, None, 0
+        return buy_realm, None, None, 0
 
-    return buy_realm, best_target, best_profit
+    return buy_realm, best_target, best_sell_price, best_profit
+
+
+
 
 # ======================
 # COMMAND
@@ -210,16 +218,19 @@ class Command(BaseCommand):
                 continue
 
             prices = min_buyout_by_realm(auctions, item_id)
-            buy, sell, profit = analyze_arbitrage(prices)
+            buy, sell, sell_price, profit = analyze_arbitrage(prices)
 
+            
             if sell:
                 ItemPriceSnapshot.objects.create(
                     item=item,
                     best_buy_realm=realms.get(buy),
                     best_sell_realm=realms.get(sell),
-                    estimated_sell_price=prices[sell] / 10000,
-                    profit=profit / 10000,
+                    buy_price=prices[buy] / 10000,
+                    estimated_sell_price=sell_price / 10000,  # precio REAL de venta
+                    profit=profit / 10000,                     # profit post-AH
                 )
+
                 created += 1
 
         save_cache(cache)
