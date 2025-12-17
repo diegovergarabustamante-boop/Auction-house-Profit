@@ -1,10 +1,6 @@
 from django.db import models
 
 
-# -------------------------
-# Profesiones
-# -------------------------
-
 class Profession(models.Model):
     name = models.CharField(max_length=100, unique=True)
 
@@ -12,26 +8,8 @@ class Profession(models.Model):
         return self.name
 
 
-# -------------------------
-# Reinos conectados
-# -------------------------
-
-class ConnectedRealm(models.Model):
-    blizzard_id = models.IntegerField(unique=True)
-    name = models.CharField(max_length=100)
-    slug = models.CharField(max_length=100)
-
-    def __str__(self):
-        return self.name
-
-
-# -------------------------
-# Items
-# -------------------------
-
 class Item(models.Model):
     name = models.CharField(max_length=255, unique=True)
-    blizzard_id = models.IntegerField(unique=True)
     profession = models.ForeignKey(
         Profession,
         null=True,
@@ -42,10 +20,6 @@ class Item(models.Model):
     def __str__(self):
         return self.name
 
-
-# -------------------------
-# Materiales
-# -------------------------
 
 class Material(models.Model):
     name = models.CharField(max_length=255, unique=True)
@@ -63,37 +37,40 @@ class ItemMaterial(models.Model):
         unique_together = ("item", "material")
 
 
-# -------------------------
-# Precios crudos por reino
-# -------------------------
+class ConnectedRealm(models.Model):
+    blizzard_id = models.IntegerField(unique=True)
+    name = models.CharField(max_length=100)
+    slug = models.CharField(max_length=100)
 
-class PriceSnapshot(models.Model):
+    def __str__(self):
+        return self.name
+
+
+class ItemPriceSnapshot(models.Model):
     item = models.ForeignKey(Item, on_delete=models.CASCADE)
-    realm = models.ForeignKey(ConnectedRealm, on_delete=models.CASCADE)
-    min_price = models.BigIntegerField()
-    created_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        indexes = [
-            models.Index(fields=["item", "realm", "created_at"])
-        ]
-
-
-# -------------------------
-# Resultados de arbitrage
-# -------------------------
-
-class ArbitrageResult(models.Model):
-    item = models.ForeignKey(Item, on_delete=models.CASCADE)
-    buy_realm = models.ForeignKey(
-        ConnectedRealm,
-        related_name="buy_results",
-        on_delete=models.CASCADE
+    estimated_sell_price = models.DecimalField(
+        max_digits=12, decimal_places=2
     )
-    sell_realm = models.ForeignKey(
+
+    best_buy_realm = models.ForeignKey(
         ConnectedRealm,
-        related_name="sell_results",
-        on_delete=models.CASCADE
+        null=True,
+        blank=True,
+        related_name="best_buys",
+        on_delete=models.SET_NULL
     )
-    profit = models.BigIntegerField()
+
+    best_sell_realm = models.ForeignKey(
+        ConnectedRealm,
+        null=True,
+        blank=True,
+        related_name="best_sells",
+        on_delete=models.SET_NULL
+    )
+
+    profit = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)

@@ -5,72 +5,45 @@ from .models import (
     Material,
     ItemMaterial,
     ConnectedRealm,
-    PriceSnapshot,
-    ArbitrageResult,
+    ItemPriceSnapshot,
 )
 
-# -------------------------
-# Básicos
-# -------------------------
 
 @admin.register(Profession)
 class ProfessionAdmin(admin.ModelAdmin):
+    list_display = ("id", "name")
+
+
+@admin.register(Item)
+class ItemAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "profession")
     search_fields = ("name",)
 
 
 @admin.register(Material)
 class MaterialAdmin(admin.ModelAdmin):
-    search_fields = ("name",)
+    list_display = ("id", "name")
 
-
-@admin.register(Item)
-class ItemAdmin(admin.ModelAdmin):
-    list_display = ("name", "blizzard_id")
-    search_fields = ("name",)
-    
 
 @admin.register(ItemMaterial)
 class ItemMaterialAdmin(admin.ModelAdmin):
     list_display = ("item", "material", "quantity_required")
-    list_filter = ("item", "material")
 
 
 @admin.register(ConnectedRealm)
 class ConnectedRealmAdmin(admin.ModelAdmin):
-    list_display = ("blizzard_id", "name", "slug")
-    search_fields = ("name", "slug")
+    list_display = ("name", "blizzard_id", "slug")
 
 
-# -------------------------
-# Precios por reino
-# -------------------------
-
-@admin.register(PriceSnapshot)
-class PriceSnapshotAdmin(admin.ModelAdmin):
+@admin.register(ItemPriceSnapshot)
+class ItemPriceSnapshotAdmin(admin.ModelAdmin):
     list_display = (
         "item",
-        "realm",
-        "min_price",
-        "created_at",
-    )
-    list_filter = ("realm",)
-    search_fields = ("item__name",)
-    date_hierarchy = "created_at"
-
-
-# -------------------------
-# Resultados de arbitrage
-# -------------------------
-
-@admin.register(ArbitrageResult)
-class ArbitrageResultAdmin(admin.ModelAdmin):
-    list_display = (
-        "item",
-        "buy_realm",
-        "sell_realm",
+        "best_buy_realm",
+        "best_sell_realm",
+        "estimated_sell_price",
         "profit",
         "created_at",
     )
-    list_filter = ("buy_realm", "sell_realm")
-    search_fields = ("item__name",)
-    date_hierarchy = "created_at"
+    list_filter = ("best_sell_realm",)
+    ordering = ("-profit",)

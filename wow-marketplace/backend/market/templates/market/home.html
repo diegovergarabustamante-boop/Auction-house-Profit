@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WoW Arbitrage</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: #e5e7eb;
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #020617;
+        }
+        th, td {
+            padding: 10px;
+            border-bottom: 1px solid #1e293b;
+            text-align: left;
+        }
+        th {
+            background: #020617;
+            color: #38bdf8;
+        }
+        tr:hover {
+            background: #020617;
+        }
+        .profit {
+            color: #22c55e;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<h1>💰 WoW Auction Arbitrage</h1>
+
+<table>
+    <thead>
+        <tr>
+            <th>Item</th>
+            <th>Buy Realm</th>
+            <th>Sell Realm</th>
+            <th>Sell Price</th>
+            <th>Profit</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for s in snapshots %}
+        <tr>
+            <td>{{ s.item.name }}</td>
+            <td>{{ s.best_buy_realm.name }}</td>
+            <td>{{ s.best_sell_realm.name }}</td>
+            <td>{{ s.estimated_sell_price }}g</td>
+            <td class="profit">{{ s.profit }}g</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5">No data yet</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+</body>
+</html>
+

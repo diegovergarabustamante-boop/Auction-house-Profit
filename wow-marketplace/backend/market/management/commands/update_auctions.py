@@ -3,18 +3,18 @@ from django.conf import settings
 
 from market.models import (
     Item,
-    Profession,
     ConnectedRealm,
     ItemPriceSnapshot,
 )
 
 import requests
 import json
-import os
 
 print("🔥 update_auctions LOADED 🔥")
 
-
+# ======================
+# CONFIG
+# ======================
 REGION = "us"
 LOCALE = "en_US"
 
@@ -28,11 +28,12 @@ PRIMARY_REALMS = [
     "Proudmoore",
 ]
 
+MAX_REALMS_TO_SCAN = 10  # ⚡ SOLO PARA DESARROLLO
+
 BASE_DIR = settings.BASE_DIR
 CREDENTIALS_FILE = BASE_DIR / "blizzard_credentials.txt"
 REALMS_JSON = BASE_DIR / "wow_realms_connected.json"
 CACHE_FILE = BASE_DIR / "item_id_cache.json"
-
 
 # ======================
 # AUTH
@@ -57,7 +58,6 @@ def get_token():
     r.raise_for_status()
     return r.json()["access_token"]
 
-
 # ======================
 # CACHE
 # ======================
@@ -70,7 +70,6 @@ def load_cache():
 def save_cache(cache):
     json.dump(cache, open(CACHE_FILE, "w"), indent=2)
 
-
 # ======================
 # REALMS
 # ======================
@@ -78,15 +77,19 @@ def load_realms():
     data = json.load(open(REALMS_JSON, "r", encoding="utf-8"))
     realms = {}
 
-    for r in data:
+    realms_data = data[:MAX_REALMS_TO_SCAN]
+
+    for r in realms_data:
         realm, _ = ConnectedRealm.objects.update_or_create(
             blizzard_id=r["id"],
-            defaults={"name": r["name"], "slug": r["slug"]},
+            defaults={
+                "name": r["name"],
+                "slug": r["slug"],
+            },
         )
         realms[realm.name] = realm
 
     return realms
-
 
 # ======================
 # ITEMS
@@ -115,7 +118,6 @@ def get_item_id(token, item_name, cache):
 
     return None
 
-
 # ======================
 # AUCTIONS
 # ======================
@@ -126,7 +128,10 @@ def get_all_auctions(token, realms):
         r = requests.get(
             f"https://{REGION}.api.blizzard.com/data/wow/connected-realm/{realm.blizzard_id}/auctions",
             headers={"Authorization": f"Bearer {token}"},
-            params={"namespace": f"dynamic-{REGION}", "locale": LOCALE},
+            params={
+                "namespace": f"dynamic-{REGION}",
+                "locale": LOCALE,
+            },
         )
         if r.status_code == 200:
             all_auctions[realm.name] = r.json().get("auctions", [])
@@ -183,7 +188,6 @@ def analyze_arbitrage(prices):
 
     return buy_realm, best_target, best_profit
 
-
 # ======================
 # COMMAND
 # ======================
@@ -197,6 +201,8 @@ class Command(BaseCommand):
         cache = load_cache()
         realms = load_realms()
         auctions = get_all_auctions(token, realms)
+
+        created = 0
 
         for item in Item.objects.all():
             item_id = get_item_id(token, item.name, cache)
@@ -214,6 +220,10 @@ class Command(BaseCommand):
                     estimated_sell_price=prices[sell] / 10000,
                     profit=profit / 10000,
                 )
+                created += 1
 
         save_cache(cache)
-        self.stdout.write("✅ Done.")
+
+        self.stdout.write(
+            self.style.SUCCESS(f"✅ Done. Snapshots creados: {created}")
+        )
