@@ -1,11 +1,9 @@
 {% load static %}
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>WoW Arbitrage Scanner</title>
-
     <link rel="stylesheet" href="{% static 'market/css/home.css' %}">
 </head>
 
@@ -13,12 +11,62 @@
 
 <h1>🪙 WoW Auction Arbitrage</h1>
 
+<!-- ===================================================== -->
+<!-- 🎯 TABLA 1: ITEMS A ESCANEAR -->
+<!-- ===================================================== -->
+
+<h2>🎯 Items a escanear</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>
+                <input type="checkbox" id="select-all-items">
+            </th>
+            <th>Item</th>
+            <th>Activo</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td>
+                <input
+                    type="checkbox"
+                    class="item-check"
+                    value="{{ item.id }}"
+                    {% if item.tracking and item.tracking.active %}checked{% endif %}
+                >
+            </td>
+            <td>{{ item.name }}</td>
+            <td>
+                {% if item.tracking and item.tracking.active %}
+                    ✅
+                {% else %}
+                    ❌
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<button id="save-tracked">💾 Guardar selección</button>
+
+<hr>
+
+<!-- ===================================================== -->
+<!-- 📈 TABLA 2: RESULTADOS DE ARBITRAJE -->
+<!-- ===================================================== -->
+
+<h2>📈 Resultados de arbitraje</h2>
+
 {% if snapshots %}
 <table>
     <thead>
         <tr>
             <th>
-                <input type="checkbox" id="select-all">
+                <input type="checkbox" id="select-all-snapshots">
             </th>
             <th>Item</th>
             <th>Buy Realm</th>
@@ -35,14 +83,14 @@
             <td>
                 <input
                     type="checkbox"
-                    class="row-check"
+                    class="snapshot-check"
                     value="{{ s.id }}"
                 >
             </td>
             <td>{{ s.item.name }}</td>
-            <td class="realm">{{ s.best_buy_realm.name }}</td>
+            <td>{{ s.best_buy_realm.name }}</td>
             <td>{{ s.buy_price }} g</td>
-            <td class="realm">{{ s.best_sell_realm.name }}</td>
+            <td>{{ s.best_sell_realm.name }}</td>
             <td>{{ s.estimated_sell_price }} g</td>
             <td class="profit">{{ s.profit }} g</td>
         </tr>
@@ -54,20 +102,13 @@
     <button id="delete-selected">🗑️ Eliminar seleccionados</button>
     <button id="delete-all">🔥 Eliminar todos</button>
 </div>
-
-
-
 {% else %}
 <p>No arbitrage data available yet.</p>
 {% endif %}
 
-</body>
-</html>
-
+<hr>
 
 <button id="update-btn">🔄 Update Auctions</button>
-
-
 
 <div id="progress-box">
     <p>⏳ Estado: <span id="state">Idle</span></p>
@@ -76,18 +117,19 @@
     <p>⏱️ Tiempo: <span id="elapsed">0</span>s</p>
     <p>⌛ ETA: <span id="eta">0</span>s</p>
 </div>
+
+<!-- ===================================================== -->
+<!-- 🚦 STATUS POLLING -->
+<!-- ===================================================== -->
+
 <script>
 const btn = document.getElementById("update-btn");
-
 let poller = null;
 let wasRunning = false;
 
 function startPolling() {
-    if (poller) return;
-
-    poller = setInterval(updateStatus, 2000);
+    if (!poller) poller = setInterval(updateStatus, 2000);
 }
-
 function stopPolling() {
     if (poller) {
         clearInterval(poller);
@@ -99,70 +141,72 @@ function updateStatus() {
     fetch("{% url 'auction_status' %}")
         .then(r => r.json())
         .then(data => {
-
             if (data.running) {
                 wasRunning = true;
-
-                document.getElementById("state").innerText = "Running";
-                document.getElementById("current").innerText = data.current || "-";
-                document.getElementById("done").innerText = data.done || 0;
-                document.getElementById("total").innerText = data.total || 0;
-                document.getElementById("elapsed").innerText = data.elapsed || 0;
-                document.getElementById("eta").innerText = data.eta || 0;
-
+                state.innerText = "Running";
+                current.innerText = data.current || "-";
+                done.innerText = data.done || 0;
+                total.innerText = data.total || 0;
+                elapsed.innerText = data.elapsed || 0;
+                eta.innerText = data.eta || 0;
                 btn.disabled = true;
-
             } else {
-                document.getElementById("state").innerText = "Idle";
+                state.innerText = "Idle";
                 btn.disabled = false;
-
-                stopPolling(); // 🛑 dejamos de consultar
-
-                if (wasRunning) {
-                    location.reload();
-                }
+                stopPolling();
+                if (wasRunning) location.reload();
             }
         });
 }
 
-// 🚀 iniciar update
 btn.addEventListener("click", () => {
     btn.disabled = true;
-
     fetch("{% url 'update_auctions' %}", {
         method: "POST",
-        headers: {
-            "X-CSRFToken": "{{ csrf_token }}"
-        }
+        headers: { "X-CSRFToken": "{{ csrf_token }}" }
     });
-
-    startPolling(); // 🔥 solo aquí arrancamos polling
+    startPolling();
 });
 </script>
 
-<script>
-const selectAll = document.getElementById("select-all");
-const deleteSelectedBtn = document.getElementById("delete-selected");
-const deleteAllBtn = document.getElementById("delete-all");
+<!-- ===================================================== -->
+<!-- 🎯 TRACKED ITEMS -->
+<!-- ===================================================== -->
 
-// ✅ seleccionar / deseleccionar todos
-selectAll?.addEventListener("change", () => {
-    document.querySelectorAll(".row-check").forEach(cb => {
-        cb.checked = selectAll.checked;
-    });
+<script>
+document.getElementById("select-all-items")?.addEventListener("change", e => {
+    document.querySelectorAll(".item-check").forEach(cb => cb.checked = e.target.checked);
 });
 
-// 🗑️ eliminar seleccionados
-deleteSelectedBtn?.addEventListener("click", () => {
-    const ids = Array.from(document.querySelectorAll(".row-check:checked"))
-        .map(cb => cb.value);
+document.getElementById("save-tracked")?.addEventListener("click", () => {
+    const ids = [...document.querySelectorAll(".item-check:checked")].map(cb => cb.value);
 
-    if (ids.length === 0) {
-        alert("No hay elementos seleccionados");
-        return;
-    }
+    fetch("{% url 'update_tracked_items' %}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify({ item_ids: ids })
+    }).then(() => {
+        alert("✅ Items a escanear actualizados");
+        location.reload();
+    });
+});
+</script>
 
-    if (!confirm(`Eliminar ${ids.length} registros?`)) return;
+<!-- ===================================================== -->
+<!-- 🗑️ DELETE SNAPSHOTS -->
+<!-- ===================================================== -->
+
+<script>
+document.getElementById("select-all-snapshots")?.addEventListener("change", e => {
+    document.querySelectorAll(".snapshot-check").forEach(cb => cb.checked = e.target.checked);
+});
+
+document.getElementById("delete-selected")?.addEventListener("click", () => {
+    const ids = [...document.querySelectorAll(".snapshot-check:checked")].map(cb => cb.value);
+    if (!ids.length) return alert("Nada seleccionado");
 
     fetch("{% url 'delete_snapshots' %}", {
         method: "POST",
@@ -174,15 +218,14 @@ deleteSelectedBtn?.addEventListener("click", () => {
     }).then(() => location.reload());
 });
 
-// 🔥 eliminar todos
-deleteAllBtn?.addEventListener("click", () => {
-    if (!confirm("⚠️ Eliminar TODOS los registros?")) return;
-
+document.getElementById("delete-all")?.addEventListener("click", () => {
+    if (!confirm("Eliminar TODOS los snapshots?")) return;
     fetch("{% url 'delete_all_snapshots' %}", {
         method: "POST",
-        headers: {
-            "X-CSRFToken": "{{ csrf_token }}"
-        }
+        headers: { "X-CSRFToken": "{{ csrf_token }}" }
     }).then(() => location.reload());
 });
 </script>
+
+</body>
+</html>

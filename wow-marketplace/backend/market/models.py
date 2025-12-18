@@ -83,3 +83,16 @@ class ItemPriceSnapshot(models.Model):
     def __str__(self):
         return f"{self.item.name} | {self.profit}g"
 
+class TrackedItem(models.Model):
+    item = models.OneToOneField(
+        Item,
+        on_delete=models.CASCADE,
+        related_name="tracking"
+    )
+
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.item.name}"
+

@@ -13,7 +13,9 @@ from market.models import (
     Item,
     ConnectedRealm,
     ItemPriceSnapshot,
+    TrackedItem,
 )
+
 
 import requests
 import json
@@ -236,7 +238,11 @@ def run_update_auctions():
 
     created = 0
 
-    for item in Item.objects.all():
+    tracked_items = TrackedItem.objects.filter(active=True).select_related("item")
+
+    for tracked in tracked_items:
+        item = tracked.item
+
         item_id = get_item_id(token, item.name, cache)
         if not item_id:
             continue
