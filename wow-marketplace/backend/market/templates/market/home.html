@@ -44,6 +44,8 @@
     </tbody>
 </table>
 
+<hr>
+
 <!-- ===================================================== -->
 <!-- 🎯 TABLA 1: ITEMS A ESCANEAR -->
 <!-- ===================================================== -->
@@ -56,23 +58,32 @@
             <th><input type="checkbox" id="select-all-items"></th>
             <th>Item</th>
             <th>Activo</th>
+            <th>Eliminar</th>
         </tr>
     </thead>
     <tbody>
         {% for item in items %}
-        <tr>
+        <tr id="item-row-{{ item.id }}">
             <td>
-                <input type="checkbox" class="item-check" value="{{ item.id }}"
-                       {% if item.tracking and item.tracking.active %}checked{% endif %}>
+                <input type="checkbox" class="item-check" value="{{ item.id }}" {% if item.tracking and item.tracking.active %}checked{% endif %}>
             </td>
-            <td>{{ item.name }}{% if item.profession %} ({{ item.profession.name }}){% endif %}</td>
+            <td>{{ item.name }}</td>
             <td>{% if item.tracking and item.tracking.active %}✅{% else %}❌{% endif %}</td>
+            <td>
+                <div style="display: flex; gap: 5px;">
+                    <button class="delete-item-btn" data-id="{{ item.id }}">🗑️</button>
+                </div>
+            </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
 
-<button id="save-tracked">💾 Guardar selección</button>
+<div style="margin-top: 15px;">
+    <button id="save-tracked">💾 Guardar selección</button>
+    <button id="delete-selected-items">🗑️ Eliminar seleccionados</button>
+    <button id="delete-all-items">🔥 Eliminar todos</button>
+</div>
 
 <hr>
 
@@ -135,7 +146,9 @@
 <!-- ===================================================== -->
 
 <script>
+// =====================
 // Update Auctions Polling
+// =====================
 const btn = document.getElementById("update-btn");
 let poller = null;
 let wasRunning = false;
@@ -171,10 +184,13 @@ btn.addEventListener("click", () => {
     startPolling();
 });
 
+// =====================
 // Track Items
+// =====================
 document.getElementById("select-all-items")?.addEventListener("change", e => {
     document.querySelectorAll(".item-check").forEach(cb => cb.checked = e.target.checked);
 });
+
 document.getElementById("save-tracked")?.addEventListener("click", () => {
     const ids = [...document.querySelectorAll(".item-check:checked")].map(cb => cb.value);
     fetch("{% url 'update_tracked_items' %}", {
@@ -184,7 +200,48 @@ document.getElementById("save-tracked")?.addEventListener("click", () => {
     }).then(() => { alert("✅ Items a escanear actualizados"); location.reload(); });
 });
 
+// =====================
+// Delete Items
+// =====================
+document.querySelectorAll(".delete-item-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+        const itemId = btn.dataset.id;
+        if (!confirm("Eliminar completamente este item?")) return;
+
+        fetch("{% url 'delete_item' %}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token }}" },
+            body: JSON.stringify({ item_id: itemId })
+        }).then(r => r.json())
+          .then(data => {
+              if (data.ok) document.getElementById(`item-row-${itemId}`).remove();
+              else alert("Error: " + (data.error || "No se pudo eliminar"));
+          });
+    });
+});
+
+document.getElementById("delete-selected-items")?.addEventListener("click", () => {
+    const ids = [...document.querySelectorAll(".item-check:checked")].map(cb => cb.value);
+    if (!ids.length) return alert("Nada seleccionado");
+
+    fetch("{% url 'delete_multiple_items' %}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token }}" },
+        body: JSON.stringify({ item_ids: ids })
+    }).then(() => location.reload());
+});
+
+document.getElementById("delete-all-items")?.addEventListener("click", () => {
+    if (!confirm("Eliminar TODOS los items?")) return;
+    fetch("{% url 'delete_all_items' %}", {
+        method: "POST",
+        headers: { "X-CSRFToken": "{{ csrf_token }}" }
+    }).then(() => location.reload());
+});
+
+// =====================
 // Delete Snapshots
+// =====================
 document.getElementById("select-all-snapshots")?.addEventListener("change", e => {
     document.querySelectorAll(".snapshot-check").forEach(cb => cb.checked = e.target.checked);
 });
@@ -203,7 +260,9 @@ document.getElementById("delete-all")?.addEventListener("click", () => {
         .then(() => location.reload());
 });
 
+// =====================
 // Add Item con Profesión
+// =====================
 document.getElementById("add-item-btn")?.addEventListener("click", () => {
     const name = document.getElementById("new-item-name").value.trim();
     const prof = document.getElementById("new-item-profession").value;

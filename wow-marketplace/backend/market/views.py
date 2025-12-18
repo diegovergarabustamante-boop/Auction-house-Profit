@@ -164,3 +164,60 @@ def add_tracked_item(request):
         "created_item": created_item,
         "created_tracked": created_tracked
     })
+
+
+from django.views.decorators.http import require_POST
+from django.http import JsonResponse
+from .models import Item
+
+@require_POST
+def delete_item(request):
+    data = json.loads(request.body)
+    item_id = data.get("item_id")
+
+    if not item_id:
+        return JsonResponse({"ok": False, "error": "No item_id provided"}, status=400)
+
+    try:
+        item = Item.objects.get(id=item_id)
+        item.delete()  # Esto elimina el Item y el TrackedItem por relación OneToOne
+        return JsonResponse({"ok": True, "item_id": item_id})
+    except Item.DoesNotExist:
+        return JsonResponse({"ok": False, "error": "Item not found"}, status=404)
+    
+
+
+    from django.views.decorators.http import require_POST
+from django.http import JsonResponse
+from .models import Item, TrackedItem, ItemPriceSnapshot
+import json
+
+@require_POST
+def delete_item(request):
+    data = json.loads(request.body)
+    item_id = data.get("item_id")
+    if not item_id:
+        return JsonResponse({"ok": False, "error": "No se proporcionó item_id"})
+
+    try:
+        item = Item.objects.get(id=item_id)
+        item.delete()
+        return JsonResponse({"ok": True})
+    except Item.DoesNotExist:
+        return JsonResponse({"ok": False, "error": "Item no encontrado"})
+
+@require_POST
+def delete_multiple_items(request):
+    data = json.loads(request.body)
+    ids = data.get("item_ids", [])
+    if not ids:
+        return JsonResponse({"ok": False, "error": "No se proporcionaron item_ids"})
+    
+    Item.objects.filter(id__in=ids).delete()
+    return JsonResponse({"ok": True, "deleted_count": len(ids)})
+
+@require_POST
+def delete_all_items(request):
+    count = Item.objects.count()
+    Item.objects.all().delete()
+    return JsonResponse({"ok": True, "deleted_count": count})

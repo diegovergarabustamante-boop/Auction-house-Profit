@@ -10,4 +10,8 @@ urlpatterns = [
     path("api/delete-snapshots/", views.delete_snapshots, name="delete_snapshots"),
     path("api/delete-all-snapshots/", views.delete_all_snapshots, name="delete_all_snapshots"),
     path('add-item/', views.add_item, name='add_item'),  # <--- asegúrate de que esté así
+    path("delete-item/", views.delete_item, name="delete_item"),
+    path('delete_item/', views.delete_item, name='delete_item'),
+    path('delete_multiple_items/', views.delete_multiple_items, name='delete_multiple_items'),
+    path('delete_all_items/', views.delete_all_items, name='delete_all_items'),
 ]
