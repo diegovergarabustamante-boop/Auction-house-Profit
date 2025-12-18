@@ -10,6 +10,15 @@ from market.models import AuctionUpdateStatus
 import time
 
 
+from django.views.decorators.http import require_POST
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
+
+from market.models import ItemPriceSnapshot
+
+
+
 def home(request):
     snapshots = (
         ItemPriceSnapshot.objects
@@ -56,3 +65,20 @@ def auction_status(request):
         "elapsed": int(elapsed),
         "eta": int(eta),
     })
+
+@require_POST
+def delete_snapshots(request):
+    data = json.loads(request.body)
+    ids = data.get("ids", [])
+
+    ItemPriceSnapshot.objects.filter(id__in=ids).delete()
+
+    return JsonResponse({"deleted": len(ids)})
+
+
+@require_POST
+def delete_all_snapshots(request):
+    count = ItemPriceSnapshot.objects.count()
+    ItemPriceSnapshot.objects.all().delete()
+
+    return JsonResponse({"deleted": count})

@@ -45,3 +45,12 @@ tr:hover {
     color: #38bdf8;
     font-weight: 600;
 }
+
+.row-check:checked {
+    accent-color: red;
+}
+
+tr:has(.row-check:checked) {
+    background: #2b1a1a;
+}
+

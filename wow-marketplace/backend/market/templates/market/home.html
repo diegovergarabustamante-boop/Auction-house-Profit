@@ -17,6 +17,9 @@
 <table>
     <thead>
         <tr>
+            <th>
+                <input type="checkbox" id="select-all">
+            </th>
             <th>Item</th>
             <th>Buy Realm</th>
             <th>Buy Price</th>
@@ -29,6 +32,13 @@
     <tbody>
         {% for s in snapshots %}
         <tr>
+            <td>
+                <input
+                    type="checkbox"
+                    class="row-check"
+                    value="{{ s.id }}"
+                >
+            </td>
             <td>{{ s.item.name }}</td>
             <td class="realm">{{ s.best_buy_realm.name }}</td>
             <td>{{ s.buy_price }} g</td>
@@ -39,6 +49,14 @@
         {% endfor %}
     </tbody>
 </table>
+
+<div style="margin-top: 15px;">
+    <button id="delete-selected">🗑️ Eliminar seleccionados</button>
+    <button id="delete-all">🔥 Eliminar todos</button>
+</div>
+
+
+
 {% else %}
 <p>No arbitrage data available yet.</p>
 {% endif %}
@@ -122,3 +140,49 @@ btn.addEventListener("click", () => {
 });
 </script>
 
+<script>
+const selectAll = document.getElementById("select-all");
+const deleteSelectedBtn = document.getElementById("delete-selected");
+const deleteAllBtn = document.getElementById("delete-all");
+
+// ✅ seleccionar / deseleccionar todos
+selectAll?.addEventListener("change", () => {
+    document.querySelectorAll(".row-check").forEach(cb => {
+        cb.checked = selectAll.checked;
+    });
+});
+
+// 🗑️ eliminar seleccionados
+deleteSelectedBtn?.addEventListener("click", () => {
+    const ids = Array.from(document.querySelectorAll(".row-check:checked"))
+        .map(cb => cb.value);
+
+    if (ids.length === 0) {
+        alert("No hay elementos seleccionados");
+        return;
+    }
+
+    if (!confirm(`Eliminar ${ids.length} registros?`)) return;
+
+    fetch("{% url 'delete_snapshots' %}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify({ ids })
+    }).then(() => location.reload());
+});
+
+// 🔥 eliminar todos
+deleteAllBtn?.addEventListener("click", () => {
+    if (!confirm("⚠️ Eliminar TODOS los registros?")) return;
+
+    fetch("{% url 'delete_all_snapshots' %}", {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": "{{ csrf_token }}"
+        }
+    }).then(() => location.reload());
+});
+</script>
