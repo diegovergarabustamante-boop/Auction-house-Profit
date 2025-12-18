@@ -51,8 +51,9 @@
     <thead>
         <tr>
             <th><input type="checkbox" id="select-all-items"></th>
-            <th>Item ID (Blizzard)</th>  <!-- Nueva columna -->
+            <th>Item ID (Blizzard)</th>
             <th>Item</th>
+            <th>Icono</th>  <!-- Nueva columna para el icono -->
             <th>Activo</th>
             <th>Eliminar</th>
         </tr>
@@ -65,6 +66,13 @@
             </td>
             <td>{{ item.blizzard_id|default:"-" }}</td>  <!-- Muestra Blizzard ID -->
             <td>{{ item.name }}</td>
+            <td>
+                {% if item.icon %}
+                <img src="{{ item.icon.url }}" alt="{{ item.name }} icon" style="width: 50px; height: 50px;">
+                {% else %}
+                <span>No icon</span>  <!-- Si no hay icono, mostrar un texto alternativo -->
+                {% endif %}
+            </td>  <!-- Columna del icono -->
             <td>{% if item.tracking and item.tracking.active %}✅{% else %}❌{% endif %}</td>
             <td>
                 <button class="delete-item-btn" data-id="{{ item.id }}">🗑️</button>
@@ -75,6 +83,7 @@
 </table>
 
 
+
 <div style="margin-top: 15px;">
     <button id="save-tracked">💾 Guardar selección</button>
     <button id="delete-selected-items">🗑️ Eliminar seleccionados</button>
@@ -83,6 +92,7 @@
 
 <hr>
 
+
 <h2>📈 Resultados de arbitraje</h2>
 
 {% if snapshots %}
@@ -90,8 +100,9 @@
     <thead>
         <tr>
             <th><input type="checkbox" id="select-all-snapshots"></th>
-            <th>Item ID</th>  <!-- Nueva columna -->
+            <th>Item ID</th>
             <th>Item</th>
+            <th>Icono</th>  <!-- Nueva columna para el icono -->
             <th>Buy Realm</th>
             <th>Buy Price</th>
             <th>Sell Realm</th>
@@ -105,6 +116,13 @@
             <td><input type="checkbox" class="snapshot-check" value="{{ s.id }}"></td>
             <td>{{ s.item.blizzard_id }}</td>
             <td>{{ s.item.name }}</td>
+            <td>
+                {% if s.item.icon %}
+                <img src="{{ s.item.icon.url }}" alt="{{ s.item.name }} icon" style="width: 50px; height: 50px;">
+                {% else %}
+                <span>No icon</span>  <!-- Si no hay icono, mostrar un texto alternativo -->
+                {% endif %}
+            </td>  <!-- Columna del icono -->
             <td>{{ s.best_buy_realm.name }}</td>
             <td>{{ s.buy_price }} g</td>
             <td>{{ s.best_sell_realm.name }}</td>
@@ -115,7 +133,6 @@
     </tbody>
 </table>
 
-
 <div style="margin-top: 15px;">
     <button id="delete-selected">🗑️ Eliminar seleccionados</button>
     <button id="delete-all">🔥 Eliminar todos</button>
@@ -123,6 +140,7 @@
 {% else %}
 <p>No arbitrage data available yet.</p>
 {% endif %}
+
 
 <hr>
 <button id="update-btn">🔄 Update Auctions</button>

@@ -39,13 +39,13 @@ class Item(models.Model):
         on_delete=models.SET_NULL
     )
     blizzard_id = models.IntegerField(null=True, blank=True)  # <-- nuevo campo
+    icon = models.ImageField(upload_to='item_icons/', null=True, blank=True)  # <-- campo para la imagen
 
     def __str__(self):
         return self.name
 
-
     class Meta:
-        ordering = ["name"]  # opcional, facilita consultas ordenadas
+        ordering = ["name"]
 
 
 class Material(models.Model):
