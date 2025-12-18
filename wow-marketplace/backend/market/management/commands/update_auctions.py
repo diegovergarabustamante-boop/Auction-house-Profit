@@ -194,6 +194,35 @@ def analyze_arbitrage(prices):
     return buy_realm, best_target, best_sell_price, best_profit
 
 
+def run_update_auctions():
+    token = get_token()
+    cache = load_cache()
+    realms = load_realms()
+    auctions = get_all_auctions(token, realms)
+
+    created = 0
+
+    for item in Item.objects.all():
+        item_id = get_item_id(token, item.name, cache)
+        if not item_id:
+            continue
+
+        prices = min_buyout_by_realm(auctions, item_id)
+        buy, sell, sell_price, profit = analyze_arbitrage(prices)
+
+        if sell:
+            ItemPriceSnapshot.objects.create(
+                item=item,
+                best_buy_realm=realms.get(buy),
+                best_sell_realm=realms.get(sell),
+                buy_price=prices[buy] / 10000,
+                estimated_sell_price=sell_price / 10000,
+                profit=profit / 10000,
+            )
+            created += 1
+
+    save_cache(cache)
+    return created
 
 
 # ======================
@@ -205,36 +234,13 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write("🚀 Updating auctions...")
 
-        token = get_token()
-        cache = load_cache()
-        realms = load_realms()
-        auctions = get_all_auctions(token, realms)
-
-        created = 0
-
-        for item in Item.objects.all():
-            item_id = get_item_id(token, item.name, cache)
-            if not item_id:
-                continue
-
-            prices = min_buyout_by_realm(auctions, item_id)
-            buy, sell, sell_price, profit = analyze_arbitrage(prices)
-
-            
-            if sell:
-                ItemPriceSnapshot.objects.create(
-                    item=item,
-                    best_buy_realm=realms.get(buy),
-                    best_sell_realm=realms.get(sell),
-                    buy_price=prices[buy] / 10000,
-                    estimated_sell_price=sell_price / 10000,  # precio REAL de venta
-                    profit=profit / 10000,                     # profit post-AH
-                )
-
-                created += 1
-
-        save_cache(cache)
+        try:
+            created = run_update_auctions()
+        except Exception as e:
+            self.stderr.write(self.style.ERROR(f"❌ Error: {e}"))
+            return
 
         self.stdout.write(
             self.style.SUCCESS(f"✅ Done. Snapshots creados: {created}")
         )
+
