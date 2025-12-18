@@ -243,6 +243,7 @@ def run_update_auctions():
     created = 0
 
     tracked_items = TrackedItem.objects.filter(active=True).select_related("item")
+    print("Items que se van a escanear:", [t.item.name for t in tracked_items])
 
     for tracked in tracked_items:
         item = tracked.item

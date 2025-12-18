@@ -3,6 +3,15 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 import json
 
+
+from django.views.decorators.http import require_POST
+from django.shortcuts import render
+from django.http import JsonResponse
+import json
+
+from .models import Item, TrackedItem, ItemPriceSnapshot, AuctionUpdateStatus
+from market.management.commands.update_auctions import run_update_auctions
+
 from .models import (
     ItemPriceSnapshot,
     AuctionUpdateStatus,
@@ -97,3 +106,54 @@ def delete_all_snapshots(request):
     count = ItemPriceSnapshot.objects.count()
     ItemPriceSnapshot.objects.all().delete()
     return JsonResponse({"deleted": count})
+
+
+from django.views.decorators.http import require_POST
+from django.http import JsonResponse
+from .models import Item, TrackedItem
+
+
+@require_POST
+def add_item(request):
+    data = json.loads(request.body)
+    item_name = data.get("name", "").strip()
+    if not item_name:
+        return JsonResponse({"error": "No name provided"}, status=400)
+
+    # crear el item si no existe
+    item, created = Item.objects.get_or_create(name=item_name)
+
+    # asegurarse de que haya un TrackedItem activo
+    TrackedItem.objects.get_or_create(item=item, defaults={"active": True})
+
+    return JsonResponse({"ok": True, "item_id": item.id})
+
+@require_POST
+def add_tracked_item(request):
+    data = json.loads(request.body)
+    item_name = data.get("item_name", "").strip()
+
+    if not item_name:
+        return JsonResponse({"ok": False, "error": "Nombre vacío"})
+
+    # Crear o recuperar Item
+    item, created_item = Item.objects.get_or_create(name=item_name)
+
+    # Crear o recuperar TrackedItem activo
+    tracked, created_tracked = TrackedItem.objects.get_or_create(
+        item=item,
+        defaults={"active": True}
+    )
+
+    # Si existía pero estaba inactivo, lo activamos
+    if not tracked.active:
+        tracked.active = True
+        tracked.save(update_fields=["active"])
+
+    return JsonResponse({
+        "ok": True,
+        "item_id": item.id,
+        "item_name": item.name,
+        "created_item": created_item,
+        "created_tracked": created_tracked
+    })

@@ -1,13 +1,12 @@
 from django.urls import path
-from .views import home, update_auctions, auction_status, delete_snapshots, delete_all_snapshots, update_tracked_items
+from . import views
 
 urlpatterns = [
-    path("", home, name="home"),
-    path("update-auctions/", update_auctions, name="update_auctions"),
-    # market/urls.py
-    path("auction-status/", auction_status, name="auction_status"),
-    path("delete-snapshots/", delete_snapshots, name="delete_snapshots"),
-    path("delete-all-snapshots/", delete_all_snapshots, name="delete_all_snapshots"),
-    path("tracked-items/update/", update_tracked_items, name="update_tracked_items"),
-
+    path("", views.home, name="home"),
+    path("api/update-tracked-items/", views.update_tracked_items, name="update_tracked_items"),
+    path("api/add-tracked-item/", views.add_tracked_item, name="add_tracked_item"),
+    path("api/update-auctions/", views.update_auctions, name="update_auctions"),
+    path("api/auction-status/", views.auction_status, name="auction_status"),
+    path("api/delete-snapshots/", views.delete_snapshots, name="delete_snapshots"),
+    path("api/delete-all-snapshots/", views.delete_all_snapshots, name="delete_all_snapshots"),
 ]
