@@ -38,9 +38,11 @@ class Item(models.Model):
         blank=True,
         on_delete=models.SET_NULL
     )
+    blizzard_id = models.IntegerField(null=True, blank=True)  # <-- nuevo campo
 
     def __str__(self):
         return self.name
+
 
     class Meta:
         ordering = ["name"]  # opcional, facilita consultas ordenadas

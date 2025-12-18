@@ -3,6 +3,9 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 import json
 
+from market.management.commands.update_auctions import get_token, get_item_id, load_cache, save_cache
+
+
 from .models import (
     Item,
     TrackedItem,
@@ -128,6 +131,7 @@ def delete_all_snapshots(request):
 def add_item(request):
     """
     Añade un nuevo Item desde la tabla con posibilidad de seleccionar profesión
+    y obtiene el Blizzard Item ID desde la API.
     """
     data = json.loads(request.body)
     item_name = data.get("name", "").strip()
@@ -143,6 +147,7 @@ def add_item(request):
         except Profession.DoesNotExist:
             return JsonResponse({"ok": False, "error": "Profesión no válida"}, status=400)
 
+    # Crear o actualizar item
     item, created = Item.objects.get_or_create(
         name=item_name, defaults={"profession": profession}
     )
@@ -150,9 +155,28 @@ def add_item(request):
         item.profession = profession
         item.save(update_fields=["profession"])
 
+    # Crear o activar tracking
     TrackedItem.objects.get_or_create(item=item, defaults={"active": True})
 
-    return JsonResponse({"ok": True, "item_id": item.id, "item_name": item.name})
+    # =======================
+    # OBTENER BLIZZARD ITEM ID
+    # =======================
+    token = get_token()          # obtener token Blizzard
+    cache = load_cache()         # cargar cache local
+    blizzard_id = get_item_id(token, item.name, cache)
+
+    if blizzard_id:
+        item.blizzard_id = blizzard_id
+        item.save(update_fields=["blizzard_id"])
+        save_cache(cache)        # guardar cache actualizado
+
+    return JsonResponse({
+        "ok": True,
+        "item_id": item.id,
+        "item_name": item.name,
+        "blizzard_id": item.blizzard_id,
+        "created_item": created
+    })
 
 
 @require_POST

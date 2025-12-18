@@ -25,7 +25,7 @@ PRIMARY_REALMS = [
     "Ragnaros", "Dalaran", "Zul'jin", "Proudmoore",
 ]
 
-MAX_REALMS_TO_SCAN = 30
+MAX_REALMS_TO_SCAN = 10
 DEV_MODE = True  # True = solo 10 reinos, False = todos
 
 BASE_DIR = settings.BASE_DIR
@@ -223,9 +223,15 @@ def run_update_auctions():
 
     for tracked in tracked_items:
         item = tracked.item
+
         item_id = get_item_id(token, item.name, cache)
         if not item_id:
             continue
+
+        # Guardar Blizzard Item ID en la base de datos
+        if item.blizzard_id != item_id:
+            item.blizzard_id = item_id
+            item.save(update_fields=["blizzard_id"])
 
         prices = min_buyout_by_realm(auctions, item_id)
         buy, sell, sell_price, profit = analyze_arbitrage(prices)
