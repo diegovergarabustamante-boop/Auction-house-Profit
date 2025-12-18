@@ -13,12 +13,14 @@
 <!-- ===================================================== -->
 <!-- ➕ AGREGAR NUEVO ITEM -->
 <!-- ===================================================== -->
+
 <h2>➕ Agregar nuevo item</h2>
 
-<table>
+<table id="add-item-table">
     <thead>
         <tr>
             <th>Nombre del item</th>
+            <th>Profesión</th>
             <th>Acción</th>
         </tr>
     </thead>
@@ -28,17 +30,24 @@
                 <input type="text" id="new-item-name" placeholder="Escribe el nombre del item" style="width: 100%;">
             </td>
             <td>
+                <select id="new-item-profession" style="width: 100%;">
+                    <option value="">-- Sin profesión --</option>
+                    {% for prof in professions %}
+                    <option value="{{ prof.id }}">{{ prof.name }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
                 <button id="add-item-btn">Agregar</button>
             </td>
         </tr>
     </tbody>
 </table>
 
-<hr>
-
 <!-- ===================================================== -->
 <!-- 🎯 TABLA 1: ITEMS A ESCANEAR -->
 <!-- ===================================================== -->
+
 <h2>🎯 Items a escanear</h2>
 
 <table>
@@ -49,11 +58,14 @@
             <th>Activo</th>
         </tr>
     </thead>
-    <tbody id="items-tbody">
+    <tbody>
         {% for item in items %}
         <tr>
-            <td><input type="checkbox" class="item-check" value="{{ item.id }}" {% if item.tracking and item.tracking.active %}checked{% endif %}></td>
-            <td>{{ item.name }}</td>
+            <td>
+                <input type="checkbox" class="item-check" value="{{ item.id }}"
+                       {% if item.tracking and item.tracking.active %}checked{% endif %}>
+            </td>
+            <td>{{ item.name }}{% if item.profession %} ({{ item.profession.name }}){% endif %}</td>
             <td>{% if item.tracking and item.tracking.active %}✅{% else %}❌{% endif %}</td>
         </tr>
         {% endfor %}
@@ -67,6 +79,7 @@
 <!-- ===================================================== -->
 <!-- 📈 TABLA 2: RESULTADOS DE ARBITRAJE -->
 <!-- ===================================================== -->
+
 <h2>📈 Resultados de arbitraje</h2>
 
 {% if snapshots %}
@@ -118,22 +131,17 @@
 </div>
 
 <!-- ===================================================== -->
-<!-- 🚦 STATUS POLLING -->
+<!-- JS -->
 <!-- ===================================================== -->
+
 <script>
+// Update Auctions Polling
 const btn = document.getElementById("update-btn");
 let poller = null;
 let wasRunning = false;
 
-function startPolling() {
-    if (!poller) poller = setInterval(updateStatus, 2000);
-}
-function stopPolling() {
-    if (poller) {
-        clearInterval(poller);
-        poller = null;
-    }
-}
+function startPolling() { if (!poller) poller = setInterval(updateStatus, 2000); }
+function stopPolling() { if (poller) { clearInterval(poller); poller = null; } }
 
 function updateStatus() {
     fetch("{% url 'auction_status' %}")
@@ -162,16 +170,11 @@ btn.addEventListener("click", () => {
     fetch("{% url 'update_auctions' %}", { method: "POST", headers: { "X-CSRFToken": "{{ csrf_token }}" } });
     startPolling();
 });
-</script>
 
-<!-- ===================================================== -->
-<!-- 🎯 TRACKED ITEMS -->
-<!-- ===================================================== -->
-<script>
+// Track Items
 document.getElementById("select-all-items")?.addEventListener("change", e => {
     document.querySelectorAll(".item-check").forEach(cb => cb.checked = e.target.checked);
 });
-
 document.getElementById("save-tracked")?.addEventListener("click", () => {
     const ids = [...document.querySelectorAll(".item-check:checked")].map(cb => cb.value);
     fetch("{% url 'update_tracked_items' %}", {
@@ -180,65 +183,44 @@ document.getElementById("save-tracked")?.addEventListener("click", () => {
         body: JSON.stringify({ item_ids: ids })
     }).then(() => { alert("✅ Items a escanear actualizados"); location.reload(); });
 });
-</script>
 
-<!-- ===================================================== -->
-<!-- ➕ AGREGAR ITEM DESDE INPUT -->
-<!-- ===================================================== -->
-<script>
-document.getElementById("add-item-btn")?.addEventListener("click", () => {
-    const nameInput = document.getElementById("new-item-name");
-    const name = nameInput.value.trim();
-    if (!name) return alert("Escribe un nombre de item");
-
-    fetch("{% url 'add_tracked_item' %}", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token }}" },
-        body: JSON.stringify({ item_name: name })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (!data.ok) return alert("Error: " + data.error);
-
-        // Limpiar input
-        nameInput.value = "";
-
-        // Agregar fila nueva a la tabla de items
-        const tbody = document.getElementById("items-tbody");
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td><input type="checkbox" class="item-check" value="${data.item_id}" checked></td>
-            <td>${data.item_name}</td>
-            <td>✅</td>
-        `;
-        tbody.appendChild(tr);
-    });
-});
-</script>
-
-<!-- ===================================================== -->
-<!-- 🗑️ DELETE SNAPSHOTS -->
-<!-- ===================================================== -->
-<script>
+// Delete Snapshots
 document.getElementById("select-all-snapshots")?.addEventListener("change", e => {
     document.querySelectorAll(".snapshot-check").forEach(cb => cb.checked = e.target.checked);
 });
-
 document.getElementById("delete-selected")?.addEventListener("click", () => {
     const ids = [...document.querySelectorAll(".snapshot-check:checked")].map(cb => cb.value);
     if (!ids.length) return alert("Nada seleccionado");
-
     fetch("{% url 'delete_snapshots' %}", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token }}" },
         body: JSON.stringify({ ids })
     }).then(() => location.reload());
 });
-
 document.getElementById("delete-all")?.addEventListener("click", () => {
     if (!confirm("Eliminar TODOS los snapshots?")) return;
     fetch("{% url 'delete_all_snapshots' %}", { method: "POST", headers: { "X-CSRFToken": "{{ csrf_token }}" } })
-    .then(() => location.reload());
+        .then(() => location.reload());
+});
+
+// Add Item con Profesión
+document.getElementById("add-item-btn")?.addEventListener("click", () => {
+    const name = document.getElementById("new-item-name").value.trim();
+    const prof = document.getElementById("new-item-profession").value;
+    if (!name) return alert("Escribe un nombre de item");
+
+    fetch("{% url 'add_item' %}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token }}" },
+        body: JSON.stringify({ name, profession_id: prof })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.ok) return alert("Error: " + (data.error || "desconocido"));
+        document.getElementById("new-item-name").value = "";
+        document.getElementById("new-item-profession").value = "";
+        location.reload();
+    });
 });
 </script>
 

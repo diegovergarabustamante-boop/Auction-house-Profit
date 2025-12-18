@@ -3,30 +3,20 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 import json
 
-
-from django.views.decorators.http import require_POST
-from django.shortcuts import render
-from django.http import JsonResponse
-import json
-
-from .models import Item, TrackedItem, ItemPriceSnapshot, AuctionUpdateStatus
-from market.management.commands.update_auctions import run_update_auctions
-
 from .models import (
+    Item,
+    TrackedItem,
     ItemPriceSnapshot,
     AuctionUpdateStatus,
-    TrackedItem
+    Profession
 )
-
 from market.management.commands.update_auctions import run_update_auctions
 
-
-from market.models import Item, ItemPriceSnapshot, TrackedItem
 
 def home(request):
     items = (
         Item.objects
-        .select_related("tracking")
+        .select_related("tracking", "profession")
         .order_by("name")
     )
 
@@ -36,15 +26,17 @@ def home(request):
         .order_by("-profit")[:50]
     )
 
+    professions = Profession.objects.order_by("name")
+
     return render(
         request,
         "market/home.html",
         {
             "items": items,          # 👈 tabla 1
             "snapshots": snapshots,  # 👈 tabla 2
+            "professions": professions, # 👈 lista para select
         },
     )
-
 
 
 @require_POST
@@ -63,7 +55,6 @@ def update_tracked_items(request):
         )
 
     return JsonResponse({"ok": True, "count": len(item_ids)})
-
 
 
 @require_POST
@@ -108,28 +99,44 @@ def delete_all_snapshots(request):
     return JsonResponse({"deleted": count})
 
 
-from django.views.decorators.http import require_POST
-from django.http import JsonResponse
-from .models import Item, TrackedItem
-
-
 @require_POST
 def add_item(request):
+    """
+    Añade un nuevo Item desde la tabla con posibilidad de seleccionar profesión
+    """
     data = json.loads(request.body)
     item_name = data.get("name", "").strip()
-    if not item_name:
-        return JsonResponse({"error": "No name provided"}, status=400)
+    profession_id = data.get("profession_id")
 
-    # crear el item si no existe
-    item, created = Item.objects.get_or_create(name=item_name)
+    if not item_name:
+        return JsonResponse({"ok": False, "error": "No name provided"}, status=400)
+
+    # Obtener la profesión si se indicó
+    profession = None
+    if profession_id:
+        try:
+            profession = Profession.objects.get(id=profession_id)
+        except Profession.DoesNotExist:
+            return JsonResponse({"ok": False, "error": "Profesión no válida"}, status=400)
+
+    # crear o recuperar el item
+    item, created = Item.objects.get_or_create(name=item_name, defaults={"profession": profession})
+    if not created:
+        # si el item ya existía, actualizar su profesión
+        item.profession = profession
+        item.save(update_fields=["profession"])
 
     # asegurarse de que haya un TrackedItem activo
     TrackedItem.objects.get_or_create(item=item, defaults={"active": True})
 
-    return JsonResponse({"ok": True, "item_id": item.id})
+    return JsonResponse({"ok": True, "item_id": item.id, "item_name": item.name})
+
 
 @require_POST
 def add_tracked_item(request):
+    """
+    Añade un item a tracked (por compatibilidad con endpoints antiguos)
+    """
     data = json.loads(request.body)
     item_name = data.get("item_name", "").strip()
 
