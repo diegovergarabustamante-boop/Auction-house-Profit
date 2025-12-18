@@ -38,7 +38,9 @@ PRIMARY_REALMS = [
     "Proudmoore",
 ]
 
-MAX_REALMS_TO_SCAN = 10  # ⚡ SOLO PARA DESARROLLO
+MAX_REALMS_TO_SCAN = 10  # ⚡ solo para desarrollo
+DEV_MODE = True  # 🔹 True = solo 10 reinos, False = todos los reinos
+
 
 BASE_DIR = settings.BASE_DIR
 CREDENTIALS_FILE = BASE_DIR / "blizzard_credentials.txt"
@@ -87,7 +89,8 @@ def load_realms():
     data = json.load(open(REALMS_JSON, "r", encoding="utf-8"))
     realms = {}
 
-    realms_data = data[:MAX_REALMS_TO_SCAN]
+    # si estamos en modo desarrollo usamos solo MAX_REALMS_TO_SCAN, si no usamos todos
+    realms_data = data[:MAX_REALMS_TO_SCAN] if DEV_MODE else data
 
     for r in realms_data:
         realm, _ = ConnectedRealm.objects.update_or_create(
@@ -100,6 +103,7 @@ def load_realms():
         realms[realm.name] = realm
 
     return realms
+
 
 # ======================
 # ITEMS
