@@ -7,153 +7,156 @@
     <link rel="stylesheet" href="{% static 'market/css/home.css' %}">
 </head>
 <body>
-
-<!-- CSRF token para JS -->
-<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
-
-<h1>🪙 WoW Auction Arbitrage</h1>
-
-<!-- ===================================================== -->
-<h2>➕ Agregar nuevo item</h2>
-
-<table id="add-item-table">
-    <thead>
-        <tr>
-            <th>Nombre del item</th>
-            <th>Profesión</th>
-            <th>Acción</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td>
-                <input type="text" id="new-item-name" placeholder="Escribe el nombre del item" style="width: 100%;">
-            </td>
-            <td>
-                <select id="new-item-profession" style="width: 100%;">
-                    <option value="">-- Sin profesión --</option>
-                    {% for prof in professions %}
-                    <option value="{{ prof.id }}">{{ prof.name }}</option>
-                    {% endfor %}
-                </select>
-            </td>
-            <td>
-                <button id="add-item-btn">Agregar</button>
-            </td>
-        </tr>
-    </tbody>
-</table>
-
-<hr>
-
-<h2>🎯 Items a escanear</h2>
-<table>
-    <thead>
-        <tr>
-            <th><input type="checkbox" id="select-all-items"></th>
-            <th>Item ID (Blizzard)</th>
-            <th>Item</th>
-            <th>Icono</th>  <!-- Nueva columna para el icono -->
-            <th>Activo</th>
-            <th>Eliminar</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for item in items %}
-        <tr id="item-row-{{ item.id }}">
-            <td>
-                <input type="checkbox" class="item-check" value="{{ item.id }}" {% if item.tracking and item.tracking.active %}checked{% endif %}>
-            </td>
-            <td>{{ item.blizzard_id|default:"-" }}</td>  <!-- Muestra Blizzard ID -->
-            <td>{{ item.name }}</td>
-            <td>
-                {% if item.icon %}
-                <img src="{{ item.icon.url }}" alt="{{ item.name }} icon" style="width: 50px; height: 50px;">
-                {% else %}
-                <span>No icon</span>  <!-- Si no hay icono, mostrar un texto alternativo -->
-                {% endif %}
-            </td>  <!-- Columna del icono -->
-            <td>{% if item.tracking and item.tracking.active %}✅{% else %}❌{% endif %}</td>
-            <td>
-                <button class="delete-item-btn" data-id="{{ item.id }}">🗑️</button>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-
-
-
-<div style="margin-top: 15px;">
-    <button id="save-tracked">💾 Guardar selección</button>
-    <button id="delete-selected-items">🗑️ Eliminar seleccionados</button>
-    <button id="delete-all-items">🔥 Eliminar todos</button>
-</div>
-
-<hr>
-
-
-<h2>📈 Resultados de arbitraje</h2>
-
-{% if snapshots %}
-<table>
-    <thead>
-        <tr>
-            <th><input type="checkbox" id="select-all-snapshots"></th>
-            <th>Item ID</th>
-            <th>Item</th>
-            <th>Icono</th>  <!-- Nueva columna para el icono -->
-            <th>Buy Realm</th>
-            <th>Buy Price</th>
-            <th>Sell Realm</th>
-            <th>Sell Price</th>
-            <th>Profit</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for s in snapshots %}
-        <tr>
-            <td><input type="checkbox" class="snapshot-check" value="{{ s.id }}"></td>
-            <td>{{ s.item.blizzard_id }}</td>
-            <td>{{ s.item.name }}</td>
-            <td>
-                {% if s.item.icon %}
-                <img src="{{ s.item.icon.url }}" alt="{{ s.item.name }} icon" style="width: 50px; height: 50px;">
-                {% else %}
-                <span>No icon</span>  <!-- Si no hay icono, mostrar un texto alternativo -->
-                {% endif %}
-            </td>  <!-- Columna del icono -->
-            <td>{{ s.best_buy_realm.name }}</td>
-            <td>{{ s.buy_price }} g</td>
-            <td>{{ s.best_sell_realm.name }}</td>
-            <td>{{ s.estimated_sell_price }} g</td>
-            <td class="profit">{{ s.profit }} g</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-
-<div style="margin-top: 15px;">
-    <button id="delete-selected">🗑️ Eliminar seleccionados</button>
-    <button id="delete-all">🔥 Eliminar todos</button>
-</div>
-{% else %}
-<p>No arbitrage data available yet.</p>
-{% endif %}
-
-
-<hr>
-<button id="update-btn">🔄 Update Auctions</button>
-
-<div id="progress-box">
-    <p>⏳ Estado: <span id="state">Idle</span></p>
-    <p>🌍 Reino actual: <span id="current">-</span></p>
-    <p>📊 Progreso: <span id="done">0</span>/<span id="total">0</span></p>
-    <p>⏱️ Tiempo: <span id="elapsed">0</span>s</p>
-    <p>⌛ ETA: <span id="eta">0</span>s</p>
-</div>
-
-<!-- JS externo -->
-<script src="{% static 'market/js/home.js' %}"></script>
+    <!-- CSRF token para JS -->
+    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+    
+    <h1>🪙 WoW Auction Arbitrage</h1>
+    
+    <!-- ===================================================== -->
+    <h2>➕ Agregar nuevo item</h2>
+    <table id="add-item-table">
+        <thead>
+            <tr>
+                <th>Nombre del item</th>
+                <th>Profesión</th>
+                <th>Decor Item</th> <!-- Nueva columna -->
+                <th>Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>
+                    <input type="text" id="new-item-name" placeholder="Escribe el nombre del item" style="width: 100%;">
+                </td>
+                <td>
+                    <select id="new-item-profession" style="width: 100%;">
+                        <option value="">-- Sin profesión --</option>
+                        {% for prof in professions %}
+                        <option value="{{ prof.id }}">{{ prof.name }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td>
+                    <input type="checkbox" id="new-item-decor">
+                    <label for="new-item-decor">Es decorativo</label>
+                </td>
+                <td>
+                    <button id="add-item-btn">Agregar</button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <hr>
+    
+    <h2>🎯 Items a escanear</h2>
+    <table>
+        <thead>
+            <tr>
+                <th><input type="checkbox" id="select-all-items"></th>
+                <th>Item ID (Blizzard)</th>
+                <th>Item</th>
+                <th>Icono</th> <!-- Nueva columna para el icono -->
+                <th>Activo</th>
+                <th>Eliminar</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr id="item-row-{{ item.id }}">
+                <td>
+                    <input type="checkbox" class="item-check" value="{{ item.id }}" {% if item.tracking and item.tracking.active %}checked{% endif %}>
+                </td>
+                <td>{{ item.blizzard_id|default:"-" }}</td> <!-- Muestra Blizzard ID -->
+                <td>{{ item.name }}</td>
+                <td>
+                    {% if item.icon %}
+                    <img src="{{ item.icon.url }}" alt="{{ item.name }} icon" style="width: 50px; height: 50px;">
+                    {% else %}
+                    <img src="https://wow.zamimg.com/images/wow/icons/large/inv_misc_rune_01.jpg" 
+                         alt="{{ item.name }} icon" 
+                         style="width: 50px; height: 50px;">
+                    {% endif %}
+                </td> <!-- Columna del icono -->
+                <td>{% if item.tracking and item.tracking.active %}✅{% else %}❌{% endif %}</td>
+                <td>
+                    <button class="delete-item-btn" data-id="{{ item.id }}">🗑️</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <div style="margin-top: 15px;">
+        <button id="save-tracked">💾 Guardar selección</button>
+        <button id="delete-selected-items">🗑️ Eliminar seleccionados</button>
+        <button id="delete-all-items">🔥 Eliminar todos</button>
+    </div>
+    
+    <hr>
+    
+    <h2>📈 Resultados de arbitraje</h2>
+    {% if snapshots %}
+    <table>
+        <thead>
+            <tr>
+                <th><input type="checkbox" id="select-all-snapshots"></th>
+                <th>Item ID</th>
+                <th>Item</th>
+                <th>Icono</th> <!-- Nueva columna para el icono -->
+                <th>Buy Realm</th>
+                <th>Buy Price</th>
+                <th>Sell Realm</th>
+                <th>Sell Price</th>
+                <th>Profit</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in snapshots %}
+            <tr>
+                <td><input type="checkbox" class="snapshot-check" value="{{ s.id }}"></td>
+                <td>{{ s.item.blizzard_id }}</td>
+                <td>{{ s.item.name }}</td>
+                <td>
+                    {% if s.item.icon %}
+                    <img src="{{ s.item.icon.url }}" alt="{{ s.item.name }} icon" style="width: 50px; height: 50px;">
+                    {% else %}
+                    <img src="https://wow.zamimg.com/images/wow/icons/large/inv_misc_rune_01.jpg" 
+                         alt="{{ s.item.name }} icon" 
+                         style="width: 50px; height: 50px;">
+                    {% endif %}
+                </td> <!-- Columna del icono -->
+                <td>{{ s.best_buy_realm.name }}</td>
+                <td>{{ s.buy_price }} g</td>
+                <td>{{ s.best_sell_realm.name }}</td>
+                <td>{{ s.estimated_sell_price }} g</td>
+                <td class="profit">{{ s.profit }} g</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <div style="margin-top: 15px;">
+        <button id="delete-selected">🗑️ Eliminar seleccionados</button>
+        <button id="delete-all">🔥 Eliminar todos</button>
+    </div>
+    {% else %}
+    <p>No arbitrage data available yet.</p>
+    {% endif %}
+    
+    <hr>
+    
+    <button id="update-btn">🔄 Update Auctions</button>
+    
+    <div id="progress-box">
+        <p>⏳ Estado: <span id="state">Idle</span></p>
+        <p>🌍 Reino actual: <span id="current">-</span></p>
+        <p>📊 Progreso: <span id="done">0</span>/<span id="total">0</span></p>
+        <p>⏱️ Tiempo: <span id="elapsed">0</span>s</p>
+        <p>⌛ ETA: <span id="eta">0</span>s</p>
+    </div>
+    
+    <!-- JS externo -->
+    <script src="{% static 'market/js/home.js' %}"></script>
 </body>
 </html>
