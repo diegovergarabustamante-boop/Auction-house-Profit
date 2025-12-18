@@ -1,56 +1,58 @@
 body {
     font-family: Arial, sans-serif;
-    background-color: #0f172a;
+    background: #0f172a url("https://cdnb.artstation.com/p/assets/covers/images/001/621/567/large/tim-moreels-nomarmosetviewericon.jpg?1449647265") no-repeat center center fixed;
+    background-size: cover;
     color: #e5e7eb;
-    padding: 20px;
+    padding: 30px;
+    position: relative;
+}
+
+/* overlay para mejorar contraste */
+body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.6); /* semi-transparente oscuro */
+    z-index: 0;
+}
+
+/* aseguramos que todo el contenido esté por encima del overlay */
+body * {
+    position: relative;
+    z-index: 1;
 }
 
 h1 {
     margin-bottom: 20px;
 }
 
+/* ====================== TABLAS ====================== */
 table {
     width: 100%;
     border-collapse: collapse;
-    background-color: #020617;
+    background: rgba(2, 6, 23, 0.4); /* cuerpo de tabla 40% visible */
+    backdrop-filter: blur(4px);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+thead {
+    background: rgba(2, 6, 23, 0.3); /* encabezado más transparente (30%) */
 }
 
 th, td {
     padding: 10px;
-    border-bottom: 1px solid #1e293b;
-    text-align: left;
-}
-
-th {
-    background-color: #020617;
-    color: #93c5fd;
-    font-size: 14px;
-    text-transform: uppercase;
+    border-bottom: 1px solid rgba(30, 41, 59, 0.4);
 }
 
 tr:hover {
-    background-color: #020617;
+    background: rgba(2, 6, 23, 0.6); /* resalta filas al pasar el mouse */
 }
 
 .profit {
-    font-weight: bold;
     color: #22c55e;
+    font-weight: bold;
 }
-
-.loss {
-    color: #ef4444;
-}
-
-.realm {
-    color: #38bdf8;
-    font-weight: 600;
-}
-
-.row-check:checked {
-    accent-color: red;
-}
-
-tr:has(.row-check:checked) {
-    background: #2b1a1a;
-}
-
