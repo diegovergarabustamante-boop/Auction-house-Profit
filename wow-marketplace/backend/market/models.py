@@ -1,6 +1,9 @@
 from django.db import models
 
 
+# =====================================================
+# AUCTION UPDATE STATUS
+# =====================================================
 class AuctionUpdateStatus(models.Model):
     started_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -8,12 +11,15 @@ class AuctionUpdateStatus(models.Model):
     total_realms = models.IntegerField(default=0)
     current_realm = models.CharField(max_length=100, blank=True)
     processed_realms = models.IntegerField(default=0)
-
     is_running = models.BooleanField(default=False)
 
     def elapsed_seconds(self):
         return (self.updated_at - self.started_at).total_seconds()
 
+
+# =====================================================
+# PROFESSIONS
+# =====================================================
 class Profession(models.Model):
     name = models.CharField(max_length=100, unique=True)
 
@@ -21,6 +27,9 @@ class Profession(models.Model):
         return self.name
 
 
+# =====================================================
+# ITEMS & MATERIALS
+# =====================================================
 class Item(models.Model):
     name = models.CharField(max_length=255, unique=True)
     profession = models.ForeignKey(
@@ -32,6 +41,9 @@ class Item(models.Model):
 
     def __str__(self):
         return self.name
+
+    class Meta:
+        ordering = ["name"]  # opcional, facilita consultas ordenadas
 
 
 class Material(models.Model):
@@ -50,6 +62,9 @@ class ItemMaterial(models.Model):
         unique_together = ("item", "material")
 
 
+# =====================================================
+# REALMS & SNAPSHOTS
+# =====================================================
 class ConnectedRealm(models.Model):
     blizzard_id = models.IntegerField(unique=True)
     name = models.CharField(max_length=100)
@@ -61,13 +76,11 @@ class ConnectedRealm(models.Model):
 
 class ItemPriceSnapshot(models.Model):
     item = models.ForeignKey(Item, on_delete=models.CASCADE)
-
     best_buy_realm = models.ForeignKey(
         ConnectedRealm,
         related_name="buy_snapshots",
         on_delete=models.CASCADE,
     )
-
     best_sell_realm = models.ForeignKey(
         ConnectedRealm,
         related_name="sell_snapshots",
@@ -83,16 +96,19 @@ class ItemPriceSnapshot(models.Model):
     def __str__(self):
         return f"{self.item.name} | {self.profit}g"
 
+
+# =====================================================
+# TRACKED ITEMS
+# =====================================================
 class TrackedItem(models.Model):
     item = models.OneToOneField(
         Item,
         on_delete=models.CASCADE,
         related_name="tracking"
     )
-
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.item.name}"
-
+        status = "Activo" if self.active else "Inactivo"
+        return f"{self.item.name} ({status})"

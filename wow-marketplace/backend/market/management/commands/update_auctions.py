@@ -1,26 +1,18 @@
 from django.core.management.base import BaseCommand
 from django.conf import settings
-
 from django.utils import timezone
 
-
 import time
-from market.models import AuctionUpdateStatus
-
-
+import json
+import requests
 
 from market.models import (
+    AuctionUpdateStatus,
     Item,
     ConnectedRealm,
     ItemPriceSnapshot,
     TrackedItem,
 )
-
-
-import requests
-import json
-
-print("🔥 update_auctions LOADED 🔥")
 
 # ======================
 # CONFIG
@@ -29,23 +21,18 @@ REGION = "us"
 LOCALE = "en_US"
 
 PRIMARY_REALMS = [
-    "Stormrage",
-    "Area 52",
-    "Moon Guard",
-    "Ragnaros",
-    "Dalaran",
-    "Zul'jin",
-    "Proudmoore",
+    "Stormrage", "Area 52", "Moon Guard",
+    "Ragnaros", "Dalaran", "Zul'jin", "Proudmoore",
 ]
 
-MAX_REALMS_TO_SCAN = 10  # ⚡ solo para desarrollo
-DEV_MODE = True  # 🔹 True = solo 10 reinos, False = todos los reinos
-
+MAX_REALMS_TO_SCAN = 30
+DEV_MODE = True  # True = solo 10 reinos, False = todos
 
 BASE_DIR = settings.BASE_DIR
 CREDENTIALS_FILE = BASE_DIR / "blizzard_credentials.txt"
 REALMS_JSON = BASE_DIR / "wow_realms_connected.json"
 CACHE_FILE = BASE_DIR / "item_id_cache.json"
+
 
 # ======================
 # AUTH
@@ -70,35 +57,36 @@ def get_token():
     r.raise_for_status()
     return r.json()["access_token"]
 
+
 # ======================
 # CACHE
 # ======================
 def load_cache():
     if CACHE_FILE.exists():
-        return json.load(open(CACHE_FILE))
+        with open(CACHE_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
     return {}
 
 
 def save_cache(cache):
-    json.dump(cache, open(CACHE_FILE, "w"), indent=2)
+    with open(CACHE_FILE, "w", encoding="utf-8") as f:
+        json.dump(cache, f, indent=2)
+
 
 # ======================
 # REALMS
 # ======================
 def load_realms():
-    data = json.load(open(REALMS_JSON, "r", encoding="utf-8"))
-    realms = {}
+    with open(REALMS_JSON, "r", encoding="utf-8") as f:
+        data = json.load(f)
 
-    # si estamos en modo desarrollo usamos solo MAX_REALMS_TO_SCAN, si no usamos todos
+    realms = {}
     realms_data = data[:MAX_REALMS_TO_SCAN] if DEV_MODE else data
 
     for r in realms_data:
         realm, _ = ConnectedRealm.objects.update_or_create(
             blizzard_id=r["id"],
-            defaults={
-                "name": r["name"],
-                "slug": r["slug"],
-            },
+            defaults={"name": r["name"], "slug": r["slug"]},
         )
         realms[realm.name] = realm
 
@@ -132,19 +120,18 @@ def get_item_id(token, item_name, cache):
 
     return None
 
+
 # ======================
 # AUCTIONS
 # ======================
 def get_all_auctions(token, realms, status):
     all_auctions = {}
-
     total = len(realms)
+
     status.total_realms = total
     status.processed_realms = 0
     status.is_running = True
     status.save()
-
-    start_time = time.time()
 
     for idx, realm in enumerate(realms.values(), start=1):
         status.current_realm = realm.name
@@ -154,20 +141,14 @@ def get_all_auctions(token, realms, status):
         r = requests.get(
             f"https://{REGION}.api.blizzard.com/data/wow/connected-realm/{realm.blizzard_id}/auctions",
             headers={"Authorization": f"Bearer {token}"},
-            params={
-                "namespace": f"dynamic-{REGION}",
-                "locale": LOCALE,
-            },
+            params={"namespace": f"dynamic-{REGION}", "locale": LOCALE},
         )
-
         if r.status_code == 200:
             all_auctions[realm.name] = r.json().get("auctions", [])
 
     status.is_running = False
     status.save(update_fields=["is_running", "updated_at"])
-
     return all_auctions
-
 
 
 def get_price_per_unit(a):
@@ -210,9 +191,7 @@ def analyze_arbitrage(prices):
     for realm in PRIMARY_REALMS:
         if realm in prices:
             sell_price = prices[realm]
-
-            raw_profit = sell_price - buy_price
-            profit = raw_profit * 0.95  # ✅ AH cut aplicado al profit
+            profit = (sell_price - buy_price) * 0.95  # AH cut
 
             if profit > best_profit:
                 best_profit = profit
@@ -227,7 +206,6 @@ def analyze_arbitrage(prices):
 
 def run_update_auctions():
     status, _ = AuctionUpdateStatus.objects.get_or_create(id=1)
-
     status.started_at = timezone.now()
     status.is_running = True
     status.processed_realms = 0
@@ -237,17 +215,14 @@ def run_update_auctions():
     token = get_token()
     cache = load_cache()
     realms = load_realms()
-
     auctions = get_all_auctions(token, realms, status)
 
     created = 0
-
     tracked_items = TrackedItem.objects.filter(active=True).select_related("item")
     print("Items que se van a escanear:", [t.item.name for t in tracked_items])
 
     for tracked in tracked_items:
         item = tracked.item
-
         item_id = get_item_id(token, item.name, cache)
         if not item_id:
             continue
@@ -274,8 +249,6 @@ def run_update_auctions():
     return created
 
 
-
-
 # ======================
 # COMMAND
 # ======================
@@ -291,7 +264,4 @@ class Command(BaseCommand):
             self.stderr.write(self.style.ERROR(f"❌ Error: {e}"))
             return
 
-        self.stdout.write(
-            self.style.SUCCESS(f"✅ Done. Snapshots creados: {created}")
-        )
-
+        self.stdout.write(self.style.SUCCESS(f"✅ Done. Snapshots creados: {created}"))

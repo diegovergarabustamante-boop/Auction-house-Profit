@@ -8,12 +8,12 @@
 </head>
 <body>
 
+<!-- CSRF token para JS -->
+<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+
 <h1>🪙 WoW Auction Arbitrage</h1>
 
 <!-- ===================================================== -->
-<!-- ➕ AGREGAR NUEVO ITEM -->
-<!-- ===================================================== -->
-
 <h2>➕ Agregar nuevo item</h2>
 
 <table id="add-item-table">
@@ -46,12 +46,7 @@
 
 <hr>
 
-<!-- ===================================================== -->
-<!-- 🎯 TABLA 1: ITEMS A ESCANEAR -->
-<!-- ===================================================== -->
-
 <h2>🎯 Items a escanear</h2>
-
 <table>
     <thead>
         <tr>
@@ -70,9 +65,7 @@
             <td>{{ item.name }}</td>
             <td>{% if item.tracking and item.tracking.active %}✅{% else %}❌{% endif %}</td>
             <td>
-                <div style="display: flex; gap: 5px;">
-                    <button class="delete-item-btn" data-id="{{ item.id }}">🗑️</button>
-                </div>
+                <button class="delete-item-btn" data-id="{{ item.id }}">🗑️</button>
             </td>
         </tr>
         {% endfor %}
@@ -86,10 +79,6 @@
 </div>
 
 <hr>
-
-<!-- ===================================================== -->
-<!-- 📈 TABLA 2: RESULTADOS DE ARBITRAJE -->
-<!-- ===================================================== -->
 
 <h2>📈 Resultados de arbitraje</h2>
 
@@ -130,7 +119,6 @@
 {% endif %}
 
 <hr>
-
 <button id="update-btn">🔄 Update Auctions</button>
 
 <div id="progress-box">
@@ -141,147 +129,7 @@
     <p>⌛ ETA: <span id="eta">0</span>s</p>
 </div>
 
-<!-- ===================================================== -->
-<!-- JS -->
-<!-- ===================================================== -->
-
-<script>
-// =====================
-// Update Auctions Polling
-// =====================
-const btn = document.getElementById("update-btn");
-let poller = null;
-let wasRunning = false;
-
-function startPolling() { if (!poller) poller = setInterval(updateStatus, 2000); }
-function stopPolling() { if (poller) { clearInterval(poller); poller = null; } }
-
-function updateStatus() {
-    fetch("{% url 'auction_status' %}")
-        .then(r => r.json())
-        .then(data => {
-            if (data.running) {
-                wasRunning = true;
-                state.innerText = "Running";
-                current.innerText = data.current || "-";
-                done.innerText = data.done || 0;
-                total.innerText = data.total || 0;
-                elapsed.innerText = data.elapsed || 0;
-                eta.innerText = data.eta || 0;
-                btn.disabled = true;
-            } else {
-                state.innerText = "Idle";
-                btn.disabled = false;
-                stopPolling();
-                if (wasRunning) location.reload();
-            }
-        });
-}
-
-btn.addEventListener("click", () => {
-    btn.disabled = true;
-    fetch("{% url 'update_auctions' %}", { method: "POST", headers: { "X-CSRFToken": "{{ csrf_token }}" } });
-    startPolling();
-});
-
-// =====================
-// Track Items
-// =====================
-document.getElementById("select-all-items")?.addEventListener("change", e => {
-    document.querySelectorAll(".item-check").forEach(cb => cb.checked = e.target.checked);
-});
-
-document.getElementById("save-tracked")?.addEventListener("click", () => {
-    const ids = [...document.querySelectorAll(".item-check:checked")].map(cb => cb.value);
-    fetch("{% url 'update_tracked_items' %}", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token }}" },
-        body: JSON.stringify({ item_ids: ids })
-    }).then(() => { alert("✅ Items a escanear actualizados"); location.reload(); });
-});
-
-// =====================
-// Delete Items
-// =====================
-document.querySelectorAll(".delete-item-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-        const itemId = btn.dataset.id;
-        if (!confirm("Eliminar completamente este item?")) return;
-
-        fetch("{% url 'delete_item' %}", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token }}" },
-            body: JSON.stringify({ item_id: itemId })
-        }).then(r => r.json())
-          .then(data => {
-              if (data.ok) document.getElementById(`item-row-${itemId}`).remove();
-              else alert("Error: " + (data.error || "No se pudo eliminar"));
-          });
-    });
-});
-
-document.getElementById("delete-selected-items")?.addEventListener("click", () => {
-    const ids = [...document.querySelectorAll(".item-check:checked")].map(cb => cb.value);
-    if (!ids.length) return alert("Nada seleccionado");
-
-    fetch("{% url 'delete_multiple_items' %}", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token }}" },
-        body: JSON.stringify({ item_ids: ids })
-    }).then(() => location.reload());
-});
-
-document.getElementById("delete-all-items")?.addEventListener("click", () => {
-    if (!confirm("Eliminar TODOS los items?")) return;
-    fetch("{% url 'delete_all_items' %}", {
-        method: "POST",
-        headers: { "X-CSRFToken": "{{ csrf_token }}" }
-    }).then(() => location.reload());
-});
-
-// =====================
-// Delete Snapshots
-// =====================
-document.getElementById("select-all-snapshots")?.addEventListener("change", e => {
-    document.querySelectorAll(".snapshot-check").forEach(cb => cb.checked = e.target.checked);
-});
-document.getElementById("delete-selected")?.addEventListener("click", () => {
-    const ids = [...document.querySelectorAll(".snapshot-check:checked")].map(cb => cb.value);
-    if (!ids.length) return alert("Nada seleccionado");
-    fetch("{% url 'delete_snapshots' %}", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token }}" },
-        body: JSON.stringify({ ids })
-    }).then(() => location.reload());
-});
-document.getElementById("delete-all")?.addEventListener("click", () => {
-    if (!confirm("Eliminar TODOS los snapshots?")) return;
-    fetch("{% url 'delete_all_snapshots' %}", { method: "POST", headers: { "X-CSRFToken": "{{ csrf_token }}" } })
-        .then(() => location.reload());
-});
-
-// =====================
-// Add Item con Profesión
-// =====================
-document.getElementById("add-item-btn")?.addEventListener("click", () => {
-    const name = document.getElementById("new-item-name").value.trim();
-    const prof = document.getElementById("new-item-profession").value;
-    if (!name) return alert("Escribe un nombre de item");
-
-    fetch("{% url 'add_item' %}", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token }}" },
-        body: JSON.stringify({ name, profession_id: prof })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (!data.ok) return alert("Error: " + (data.error || "desconocido"));
-        document.getElementById("new-item-name").value = "";
-        document.getElementById("new-item-profession").value = "";
-        location.reload();
-    });
-});
-</script>
-
+<!-- JS externo -->
+<script src="{% static 'market/js/home.js' %}"></script>
 </body>
 </html>

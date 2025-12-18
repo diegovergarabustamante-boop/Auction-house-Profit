@@ -1,25 +1,24 @@
+/* ====================== BASE ====================== */
 body {
     font-family: Arial, sans-serif;
-    background: #0f172a url("https://cdnb.artstation.com/p/assets/covers/images/001/621/567/large/tim-moreels-nomarmosetviewericon.jpg?1449647265") no-repeat center center fixed;
+    background: #0f172a url("https://cdnb.artstation.com/p/assets/covers/images/001/621/567/large/tim-moreels-nomarmosetviewericon.jpg?1449647265") 
+                no-repeat center center fixed;
     background-size: cover;
     color: #e5e7eb;
     padding: 30px;
     position: relative;
 }
 
-/* overlay para mejorar contraste */
+/* overlay semi-transparente para mejorar contraste */
 body::before {
     content: "";
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(15, 23, 42, 0.6); /* semi-transparente oscuro */
+    inset: 0; /* top:0; left:0; right:0; bottom:0; */
+    background: rgba(15, 23, 42, 0.6);
     z-index: 0;
 }
 
-/* aseguramos que todo el contenido esté por encima del overlay */
+/* asegurar que todo el contenido esté por encima del overlay */
 body * {
     position: relative;
     z-index: 1;
@@ -33,14 +32,14 @@ h1 {
 table {
     width: 100%;
     border-collapse: collapse;
-    background: rgba(2, 6, 23, 0.4); /* cuerpo de tabla 40% visible */
+    background: rgba(2, 6, 23, 0.4);
     backdrop-filter: blur(4px);
     border-radius: 6px;
     overflow: hidden;
 }
 
 thead {
-    background: rgba(2, 6, 23, 0.3); /* encabezado más transparente (30%) */
+    background: rgba(2, 6, 23, 0.3);
 }
 
 th, td {
@@ -49,9 +48,10 @@ th, td {
 }
 
 tr:hover {
-    background: rgba(2, 6, 23, 0.6); /* resalta filas al pasar el mouse */
+    background: rgba(2, 6, 23, 0.6);
 }
 
+/* ====================== ESTILOS ESPECIALES ====================== */
 .profit {
     color: #22c55e;
     font-weight: bold;
