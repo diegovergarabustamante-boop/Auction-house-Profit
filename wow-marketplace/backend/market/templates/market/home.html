@@ -47,10 +47,8 @@
 </html>
 
 
-<form method="post" action="{% url 'update_auctions' %}">
-    {% csrf_token %}
-    <button type="submit">🔄 Update Auctions</button>
-</form>
+<button id="update-btn">🔄 Update Auctions</button>
+
 
 
 <div id="progress-box">
@@ -61,23 +59,66 @@
     <p>⌛ ETA: <span id="eta">0</span>s</p>
 </div>
 <script>
+const btn = document.getElementById("update-btn");
+
+let poller = null;
+let wasRunning = false;
+
+function startPolling() {
+    if (poller) return;
+
+    poller = setInterval(updateStatus, 2000);
+}
+
+function stopPolling() {
+    if (poller) {
+        clearInterval(poller);
+        poller = null;
+    }
+}
+
 function updateStatus() {
     fetch("{% url 'auction_status' %}")
         .then(r => r.json())
         .then(data => {
-            if (!data.running) {
-                document.getElementById("state").innerText = "Idle";
-                return;
-            }
 
-            document.getElementById("state").innerText = "Running";
-            document.getElementById("current").innerText = data.current;
-            document.getElementById("done").innerText = data.done;
-            document.getElementById("total").innerText = data.total;
-            document.getElementById("elapsed").innerText = data.elapsed;
-            document.getElementById("eta").innerText = data.eta;
+            if (data.running) {
+                wasRunning = true;
+
+                document.getElementById("state").innerText = "Running";
+                document.getElementById("current").innerText = data.current || "-";
+                document.getElementById("done").innerText = data.done || 0;
+                document.getElementById("total").innerText = data.total || 0;
+                document.getElementById("elapsed").innerText = data.elapsed || 0;
+                document.getElementById("eta").innerText = data.eta || 0;
+
+                btn.disabled = true;
+
+            } else {
+                document.getElementById("state").innerText = "Idle";
+                btn.disabled = false;
+
+                stopPolling(); // 🛑 dejamos de consultar
+
+                if (wasRunning) {
+                    location.reload();
+                }
+            }
         });
 }
 
-setInterval(updateStatus, 2000);
+// 🚀 iniciar update
+btn.addEventListener("click", () => {
+    btn.disabled = true;
+
+    fetch("{% url 'update_auctions' %}", {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": "{{ csrf_token }}"
+        }
+    });
+
+    startPolling(); // 🔥 solo aquí arrancamos polling
+});
 </script>
+
