@@ -1,6 +1,14 @@
 from django.core.management.base import BaseCommand
 from django.conf import settings
 
+from django.utils import timezone
+
+
+import time
+from market.models import AuctionUpdateStatus
+
+
+
 from market.models import (
     Item,
     ConnectedRealm,
@@ -121,10 +129,22 @@ def get_item_id(token, item_name, cache):
 # ======================
 # AUCTIONS
 # ======================
-def get_all_auctions(token, realms):
+def get_all_auctions(token, realms, status):
     all_auctions = {}
 
-    for realm in realms.values():
+    total = len(realms)
+    status.total_realms = total
+    status.processed_realms = 0
+    status.is_running = True
+    status.save()
+
+    start_time = time.time()
+
+    for idx, realm in enumerate(realms.values(), start=1):
+        status.current_realm = realm.name
+        status.processed_realms = idx
+        status.save(update_fields=["current_realm", "processed_realms", "updated_at"])
+
         r = requests.get(
             f"https://{REGION}.api.blizzard.com/data/wow/connected-realm/{realm.blizzard_id}/auctions",
             headers={"Authorization": f"Bearer {token}"},
@@ -133,10 +153,15 @@ def get_all_auctions(token, realms):
                 "locale": LOCALE,
             },
         )
+
         if r.status_code == 200:
             all_auctions[realm.name] = r.json().get("auctions", [])
 
+    status.is_running = False
+    status.save(update_fields=["is_running", "updated_at"])
+
     return all_auctions
+
 
 
 def get_price_per_unit(a):
@@ -195,10 +220,19 @@ def analyze_arbitrage(prices):
 
 
 def run_update_auctions():
+    status, _ = AuctionUpdateStatus.objects.get_or_create(id=1)
+
+    status.started_at = timezone.now()
+    status.is_running = True
+    status.processed_realms = 0
+    status.current_realm = ""
+    status.save()
+
     token = get_token()
     cache = load_cache()
     realms = load_realms()
-    auctions = get_all_auctions(token, realms)
+
+    auctions = get_all_auctions(token, realms, status)
 
     created = 0
 
@@ -222,7 +256,13 @@ def run_update_auctions():
             created += 1
 
     save_cache(cache)
+
+    status.is_running = False
+    status.save(update_fields=["is_running", "updated_at"])
+
     return created
+
+
 
 
 # ======================

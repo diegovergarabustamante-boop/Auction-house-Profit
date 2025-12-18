@@ -51,3 +51,33 @@
     {% csrf_token %}
     <button type="submit">🔄 Update Auctions</button>
 </form>
+
+
+<div id="progress-box">
+    <p>⏳ Estado: <span id="state">Idle</span></p>
+    <p>🌍 Reino actual: <span id="current">-</span></p>
+    <p>📊 Progreso: <span id="done">0</span>/<span id="total">0</span></p>
+    <p>⏱️ Tiempo: <span id="elapsed">0</span>s</p>
+    <p>⌛ ETA: <span id="eta">0</span>s</p>
+</div>
+<script>
+function updateStatus() {
+    fetch("{% url 'auction_status' %}")
+        .then(r => r.json())
+        .then(data => {
+            if (!data.running) {
+                document.getElementById("state").innerText = "Idle";
+                return;
+            }
+
+            document.getElementById("state").innerText = "Running";
+            document.getElementById("current").innerText = data.current;
+            document.getElementById("done").innerText = data.done;
+            document.getElementById("total").innerText = data.total;
+            document.getElementById("elapsed").innerText = data.elapsed;
+            document.getElementById("eta").innerText = data.eta;
+        });
+}
+
+setInterval(updateStatus, 2000);
+</script>

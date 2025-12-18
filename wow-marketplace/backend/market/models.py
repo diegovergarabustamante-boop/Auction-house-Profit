@@ -1,6 +1,19 @@
 from django.db import models
 
 
+class AuctionUpdateStatus(models.Model):
+    started_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    total_realms = models.IntegerField(default=0)
+    current_realm = models.CharField(max_length=100, blank=True)
+    processed_realms = models.IntegerField(default=0)
+
+    is_running = models.BooleanField(default=False)
+
+    def elapsed_seconds(self):
+        return (self.updated_at - self.started_at).total_seconds()
+
 class Profession(models.Model):
     name = models.CharField(max_length=100, unique=True)
 
