@@ -51,6 +51,7 @@
     <thead>
         <tr>
             <th><input type="checkbox" id="select-all-items"></th>
+            <th>Item ID (Blizzard)</th>  <!-- Nueva columna -->
             <th>Item</th>
             <th>Activo</th>
             <th>Eliminar</th>
@@ -62,6 +63,7 @@
             <td>
                 <input type="checkbox" class="item-check" value="{{ item.id }}" {% if item.tracking and item.tracking.active %}checked{% endif %}>
             </td>
+            <td>{{ item.blizzard_id|default:"-" }}</td>  <!-- Muestra Blizzard ID -->
             <td>{{ item.name }}</td>
             <td>{% if item.tracking and item.tracking.active %}✅{% else %}❌{% endif %}</td>
             <td>
@@ -71,6 +73,7 @@
         {% endfor %}
     </tbody>
 </table>
+
 
 <div style="margin-top: 15px;">
     <button id="save-tracked">💾 Guardar selección</button>

@@ -130,7 +130,7 @@ def delete_all_snapshots(request):
 @require_POST
 def add_item(request):
     """
-    Añade un nuevo Item desde la tabla con posibilidad de seleccionar profesión
+    Añade un nuevo Item solo si se encuentra en Blizzard
     y obtiene el Blizzard Item ID desde la API.
     """
     data = json.loads(request.body)
@@ -147,28 +147,43 @@ def add_item(request):
         except Profession.DoesNotExist:
             return JsonResponse({"ok": False, "error": "Profesión no válida"}, status=400)
 
-    # Crear o actualizar item
-    item, created = Item.objects.get_or_create(
-        name=item_name, defaults={"profession": profession}
-    )
-    if not created:
-        item.profession = profession
-        item.save(update_fields=["profession"])
-
-    # Crear o activar tracking
-    TrackedItem.objects.get_or_create(item=item, defaults={"active": True})
-
     # =======================
     # OBTENER BLIZZARD ITEM ID
     # =======================
     token = get_token()          # obtener token Blizzard
     cache = load_cache()         # cargar cache local
-    blizzard_id = get_item_id(token, item.name, cache)
+    blizzard_id = get_item_id(token, item_name, cache)
 
-    if blizzard_id:
-        item.blizzard_id = blizzard_id
-        item.save(update_fields=["blizzard_id"])
-        save_cache(cache)        # guardar cache actualizado
+    if not blizzard_id:
+        return JsonResponse({"ok": False, "error": "No se encontró el item en Blizzard"}, status=404)
+
+    # =======================
+    # CREAR ITEM Y TRACKED
+    # =======================
+    item, created = Item.objects.get_or_create(
+        name=item_name,
+        defaults={"profession": profession, "blizzard_id": blizzard_id}
+    )
+
+    # Si ya existía, actualizar blizzard_id y profesión si es necesario
+    updated_fields = []
+    if not created:
+        if item.blizzard_id != blizzard_id:
+            item.blizzard_id = blizzard_id
+            updated_fields.append("blizzard_id")
+        if profession and item.profession != profession:
+            item.profession = profession
+            updated_fields.append("profession")
+        if updated_fields:
+            item.save(update_fields=updated_fields)
+
+    # Crear o activar tracking
+    tracked, _ = TrackedItem.objects.get_or_create(item=item, defaults={"active": True})
+    if not tracked.active:
+        tracked.active = True
+        tracked.save(update_fields=["active"])
+
+    save_cache(cache)
 
     return JsonResponse({
         "ok": True,
