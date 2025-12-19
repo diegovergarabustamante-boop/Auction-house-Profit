@@ -169,20 +169,3 @@
 
 
 
-<script>
-    // Función para manejar la visibilidad del progreso y el botón de actualización
-    const arbitrageResultsTitle = document.getElementById('arbitrage-results-title');
-    const progressBox = document.getElementById('progress-box');
-    const updateBtn = document.getElementById('update-btn');
-
-    arbitrageResultsTitle.addEventListener('click', function () {
-        // Si la sección de resultados de arbitraje está expandida, mostramos el progreso y el botón de actualización
-        if (arbitrageResultsTitle.classList.contains('active')) {
-            progressBox.style.display = 'block';
-            updateBtn.style.display = 'block';
-        } else {
-            progressBox.style.display = 'none';
-            updateBtn.style.display = 'none';
-        }
-    });
-</script>

@@ -152,7 +152,7 @@ div#arbitrage-results-container > div {
     color: #e5e7eb;
     text-align: center;
     font-size: 1.2em;
-    display: none; /* Inicialmente oculto */
+    display: block; /* Ahora siempre visible */
 }
 
 #progress-box p {
@@ -173,7 +173,7 @@ div#arbitrage-results-container > div {
     border-radius: 5px;
     font-size: 1.2em;
     margin: 20px auto;
-    display: none; /* Inicialmente oculto */
+    display: block; /* Ahora siempre visible */
 }
 
 #update-btn:hover {
