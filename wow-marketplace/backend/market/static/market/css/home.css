@@ -23,6 +23,15 @@ body * {
     z-index: 1;
 }
 
+/* ====================== TÍTULO ====================== */
+h1 {
+    text-align: center; /* Centra el título */
+    font-size: 2.5em; /* Tamaño grande para el título */
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 40px; /* Espacio antes de la primera tabla */
+}
+
 /* ====================== COLAPSAR TABLAS ====================== */
 .collapsible {
     cursor: pointer;
@@ -34,6 +43,8 @@ body * {
     border-radius: 5px;
     font-weight: bold;
     text-align: center;
+    width: 70%;                /* Ancho igual al de las tablas */
+    margin: 10px auto;         /* Centra el título colapsable */
 }
 
 .collapsible:hover {
@@ -48,17 +59,19 @@ body * {
     content: ' ▲';
 }
 
+/* Mostrar las tablas por defecto */
 #add-item-container,
 #scan-items-container,
 #arbitrage-results-container {
     display: block;  /* Cambié display: none a display: block */
+    width: 70%;                /* Igual al de los títulos colapsables */
+    margin: 0 auto;            /* Centra las tablas */
 }
-
 
 /* ====================== TABLAS ====================== */
 table {
-    width: 50%;
-    margin: 0 auto;
+    width: 100%;               /* Las tablas ocuparán todo el ancho de su contenedor */
+    margin: 0 auto;            /* Para asegurar que la tabla esté centrada */
     border-collapse: collapse;
     background: rgba(2, 6, 23, 0.4);
     backdrop-filter: blur(4px);
@@ -90,40 +103,11 @@ th {
 #scan-items-container,
 #arbitrage-results-container {
     display: block;
-    width: 70%;                /* Todas las tablas tendrán el mismo tamaño */
+    width: 70%;                /* Ancho igual al de las tablas */
     margin: 0 auto;            /* Esto centra los contenedores horizontalmente */
 }
 
-/* Tablas */
-table {
-    width: 100%;               /* Las tablas ocuparán todo el ancho de su contenedor */
-    margin: 0 auto;            /* Para asegurar que la tabla esté centrada */
-    border-collapse: collapse;
-    background: rgba(2, 6, 23, 0.4);
-    backdrop-filter: blur(4px);
-    border-radius: 6px;
-    overflow: hidden;
-}
-
-thead {
-    background: rgba(2, 6, 23, 0.3);
-}
-
-th, td {
-    padding: 15px;
-    text-align: center;
-    border-bottom: 1px solid rgba(30, 41, 59, 0.4);
-}
-
-tr:hover {
-    background: rgba(2, 6, 23, 0.6);
-}
-
-th {
-    font-weight: bold;
-}
-
-/* Centramos los botones dentro de sus contenedores */
+/* Botones */
 #add-item-btn,
 #save-tracked,
 #delete-selected-items,
@@ -156,4 +140,42 @@ th {
 div#scan-items-container > div,
 div#arbitrage-results-container > div {
     text-align: center;
+}
+
+/* ====================== PROGRESS BOX ====================== */
+#progress-box {
+    background-color: rgba(0, 0, 0, 0.7); /* Fondo oscuro para el progress box */
+    padding: 20px;
+    border-radius: 10px;
+    width: 70%;
+    margin: 30px auto;
+    color: #e5e7eb;
+    text-align: center;
+    font-size: 1.2em;
+    display: none; /* Inicialmente oculto */
+}
+
+#progress-box p {
+    margin: 8px 0; /* Espacio entre los párrafos */
+}
+
+#progress-box span {
+    font-weight: bold;
+    color: #4CAF50; /* Color verde para destacar el estado */
+}
+
+/* ====================== BOTÓN UPDATE ====================== */
+#update-btn {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    font-size: 1.2em;
+    margin: 20px auto;
+    display: none; /* Inicialmente oculto */
+}
+
+#update-btn:hover {
+    background-color: #45a049;
 }

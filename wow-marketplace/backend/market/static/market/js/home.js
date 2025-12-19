@@ -207,4 +207,7 @@ document.addEventListener("DOMContentLoaded", () => {
             alert("Error al agregar el item");
         });
     });
+
+
+    
 });
