@@ -53,6 +53,17 @@ document.addEventListener("DOMContentLoaded", () => {
         startPolling();
     });
     
+    // ===================== Collapsable Tables =====================
+    const collapsibleTitles = document.querySelectorAll('.collapsible');
+    
+    collapsibleTitles.forEach(title => {
+        title.addEventListener("click", () => {
+            const container = title.nextElementSibling;
+            container.style.display = container.style.display === "none" ? "block" : "none";
+            title.classList.toggle("active");
+        });
+    });
+
     // ===================== Track Items =====================
     document.getElementById("select-all-items")?.addEventListener("change", e => {
         document.querySelectorAll(".item-check").forEach(cb => cb.checked = e.target.checked);

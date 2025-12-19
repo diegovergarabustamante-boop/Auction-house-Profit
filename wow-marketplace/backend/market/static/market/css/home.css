@@ -13,24 +13,51 @@ body {
 body::before {
     content: "";
     position: fixed;
-    inset: 0; /* top:0; left:0; right:0; bottom:0; */
+    inset: 0;
     background: rgba(15, 23, 42, 0.6);
     z-index: 0;
 }
 
-/* asegurar que todo el contenido esté por encima del overlay */
 body * {
     position: relative;
     z-index: 1;
 }
 
-h1 {
-    margin-bottom: 20px;
+/* ====================== COLAPSAR TABLAS ====================== */
+.collapsible {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background-color: #2c3e50;
+    color: white;
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 5px;
+    font-weight: bold;
+    text-align: center;
+}
+
+.collapsible:hover {
+    background-color: #34495e;
+}
+
+.collapsible:after {
+    content: ' ▼';
+}
+
+.collapsible.active:after {
+    content: ' ▲';
+}
+
+#add-item-container,
+#scan-items-container,
+#arbitrage-results-container {
+    display: none;
 }
 
 /* ====================== TABLAS ====================== */
 table {
-    width: 100%;
+    width: 50%;
+    margin: 0 auto;
     border-collapse: collapse;
     background: rgba(2, 6, 23, 0.4);
     backdrop-filter: blur(4px);
@@ -43,7 +70,8 @@ thead {
 }
 
 th, td {
-    padding: 10px;
+    padding: 15px;
+    text-align: center;
     border-bottom: 1px solid rgba(30, 41, 59, 0.4);
 }
 
@@ -51,8 +79,32 @@ tr:hover {
     background: rgba(2, 6, 23, 0.6);
 }
 
-/* ====================== ESTILOS ESPECIALES ====================== */
-.profit {
-    color: #22c55e;
+th {
     font-weight: bold;
+}
+
+/* ====================== BOTONES ====================== */
+#add-item-btn,
+#save-tracked,
+#delete-selected-items,
+#delete-all-items,
+#delete-selected,
+#delete-all {
+    width: 100%;
+    padding: 10px;
+    margin: 5px 0;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#add-item-btn:hover,
+#save-tracked:hover,
+#delete-selected-items:hover,
+#delete-all-items:hover,
+#delete-selected:hover,
+#delete-all:hover {
+    background-color: #45a049;
 }
