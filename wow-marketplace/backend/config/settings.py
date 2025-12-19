@@ -122,7 +122,10 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = '/static/'
+
+# Para desarrollo
 STATICFILES_DIRS = [
-    BASE_DIR / "market/static",
+    BASE_DIR / "static",  # Si tus archivos estáticos están en una carpeta llamada "static" en la raíz del proyecto
 ]
+
 
