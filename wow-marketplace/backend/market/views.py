@@ -52,7 +52,14 @@ def update_tracked_items(request):
 
     TrackedItem.objects.update(active=False)
     for item_id in item_ids:
-        TrackedItem.objects.update_or_create(item_id=item_id, defaults={"active": True})
+        tracked_item, created = TrackedItem.objects.update_or_create(
+            item_id=item_id,
+            defaults={"active": True}
+        )
+
+        # Actualizar la fecha de escaneo
+        tracked_item.scanned_at = timezone.now()
+        tracked_item.save(update_fields=["scanned_at"])
 
     return JsonResponse({"ok": True, "count": len(item_ids)})
 
@@ -72,6 +79,11 @@ def add_tracked_item(request):
         tracked.active = True
         tracked.save(update_fields=["active"])
 
+    # Actualizar la fecha de adición (si no existe)
+    if tracked.added_at is None:
+        tracked.added_at = timezone.now()
+        tracked.save(update_fields=["added_at"])
+
     return JsonResponse({
         "ok": True,
         "item_id": item.id,
@@ -79,6 +91,7 @@ def add_tracked_item(request):
         "created_item": created_item,
         "created_tracked": created_tracked
     })
+
 
 
 # =====================================================

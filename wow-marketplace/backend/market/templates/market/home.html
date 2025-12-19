@@ -60,6 +60,7 @@
                     <th>Item ID (Blizzard)</th>
                     <th>Item</th>
                     <th>Icono</th> <!-- Nueva columna para el icono -->
+                    <th>Fecha de adición</th> <!-- Nueva columna para la fecha de adición -->
                     <th>Activo</th>
                     <th>Eliminar</th>
                 </tr>
@@ -81,6 +82,7 @@
                             style="width: 50px; height: 50px;">
                         {% endif %}
                     </td>
+                    <td>{{ item.tracking.added_at|date:"d/m H:i" }}</td>  <!-- Fecha de adición -->
                     <td>{% if item.tracking and item.tracking.active %}✅{% else %}❌{% endif %}</td>
                     <td>
                         <button class="delete-item-btn" data-id="{{ item.id }}">🗑️</button>
@@ -107,6 +109,7 @@
                 <tr>
                     <th><input type="checkbox" id="select-all-snapshots"></th>
                     <th>Item ID</th>
+                    <th>Fecha de escaneo</th> <!-- Colocada entre Item ID y Item -->
                     <th>Item</th>
                     <th>Icono</th> <!-- Nueva columna para el icono -->
                     <th>Buy Realm</th>
@@ -121,6 +124,7 @@
                 <tr>
                     <td><input type="checkbox" class="snapshot-check" value="{{ s.id }}"></td>
                     <td>{{ s.item.blizzard_id }}</td>
+                    <td>{{ s.scanned_at|date:"d/m H:i" }}</td>  <!-- Fecha de escaneo -->
                     <td>{{ s.item.name }}</td>
                     <td>
                         {% if s.item.icon %}
@@ -166,6 +170,3 @@
     <script src="{% static 'market/js/home.js' %}"></script>
 </body>
 </html>
-
-
-

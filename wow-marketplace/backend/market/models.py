@@ -110,6 +110,8 @@ class TrackedItem(models.Model):
     )
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    added_at = models.DateTimeField(null=True, blank=True)  # Nueva fecha de adición
+    scanned_at = models.DateTimeField(null=True, blank=True)  # Nueva fecha de escaneo
 
     def __str__(self):
         status = "Activo" if self.active else "Inactivo"
