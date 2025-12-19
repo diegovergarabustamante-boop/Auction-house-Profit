@@ -51,8 +51,9 @@ body * {
 #add-item-container,
 #scan-items-container,
 #arbitrage-results-container {
-    display: none;
+    display: block;  /* Cambié display: none a display: block */
 }
+
 
 /* ====================== TABLAS ====================== */
 table {
@@ -84,20 +85,62 @@ th {
 }
 
 /* ====================== BOTONES ====================== */
+/* Contenedor de las tablas */
+#add-item-container,
+#scan-items-container,
+#arbitrage-results-container {
+    display: block;
+    width: 70%;                /* Todas las tablas tendrán el mismo tamaño */
+    margin: 0 auto;            /* Esto centra los contenedores horizontalmente */
+}
+
+/* Tablas */
+table {
+    width: 100%;               /* Las tablas ocuparán todo el ancho de su contenedor */
+    margin: 0 auto;            /* Para asegurar que la tabla esté centrada */
+    border-collapse: collapse;
+    background: rgba(2, 6, 23, 0.4);
+    backdrop-filter: blur(4px);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+thead {
+    background: rgba(2, 6, 23, 0.3);
+}
+
+th, td {
+    padding: 15px;
+    text-align: center;
+    border-bottom: 1px solid rgba(30, 41, 59, 0.4);
+}
+
+tr:hover {
+    background: rgba(2, 6, 23, 0.6);
+}
+
+th {
+    font-weight: bold;
+}
+
+/* Centramos los botones dentro de sus contenedores */
 #add-item-btn,
 #save-tracked,
 #delete-selected-items,
 #delete-all-items,
 #delete-selected,
 #delete-all {
-    width: 100%;
-    padding: 10px;
+    width: auto;              /* Cambié de 100% a auto para que los botones no ocupen todo el ancho */
+    padding: 8px 15px;
+    font-size: 14px;
     margin: 5px 0;
     background-color: #4CAF50;
     color: white;
     border: none;
     border-radius: 5px;
     cursor: pointer;
+    display: inline-block;     /* Para que los botones se alineen uno junto al otro */
+    text-align: center;        /* Para asegurarnos que el texto esté centrado */
 }
 
 #add-item-btn:hover,
@@ -107,4 +150,10 @@ th {
 #delete-selected:hover,
 #delete-all:hover {
     background-color: #45a049;
+}
+
+/* Si quieres que los botones se alineen en fila */
+div#scan-items-container > div,
+div#arbitrage-results-container > div {
+    text-align: center;
 }
