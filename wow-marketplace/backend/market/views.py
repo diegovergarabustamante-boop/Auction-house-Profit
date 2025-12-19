@@ -118,8 +118,32 @@ def auction_status(request):
 def delete_snapshots(request):
     data = json.loads(request.body)
     ids = data.get("ids", [])
-    ItemPriceSnapshot.objects.filter(id__in=ids).delete()
-    return JsonResponse({"deleted": len(ids)})
+    
+    # Eliminar los snapshots seleccionados
+    deleted_count, _ = ItemPriceSnapshot.objects.filter(id__in=ids).delete()
+    
+    # Recuperar los snapshots restantes
+    snapshots = ItemPriceSnapshot.objects.select_related(
+        "item", "best_buy_realm", "best_sell_realm"
+    ).order_by("-profit")[:50]
+
+    # Crear respuesta con los snapshots restantes
+    snapshots_data = [
+        {
+            "id": s.id,
+            "item_name": s.item.name,
+            "blizzard_id": s.item.blizzard_id,
+            "best_buy_realm": s.best_buy_realm.name,
+            "best_sell_realm": s.best_sell_realm.name,
+            "buy_price": str(s.buy_price),
+            "estimated_sell_price": str(s.estimated_sell_price),
+            "profit": str(s.profit),
+        }
+        for s in snapshots
+    ]
+
+    return JsonResponse({"deleted": deleted_count, "snapshots": snapshots_data})
+
 
 
 @require_POST

@@ -106,19 +106,65 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
     
-    document.getElementById("delete-selected-items")?.addEventListener("click", () => {
-        const ids = [...document.querySelectorAll(".item-check:checked")].map(cb => cb.value);
-        if (!ids.length) return alert("Nada seleccionado");
-        
-        fetch("/api/delete-multiple-items/", {
+    // ===================== Delete Selected Items (Items a Escanear) =====================
+document.getElementById("delete-selected")?.addEventListener("click", () => {
+    const ids = [...document.querySelectorAll(".snapshot-check:checked")].map(cb => cb.value);
+    if (!ids.length) return alert("Nada seleccionado");
+
+    const confirmDelete = confirm("¿Estás seguro de eliminar los snapshots seleccionados? Esta acción no se puede deshacer.");
+
+    if (confirmDelete) {
+        fetch("/api/delete-snapshots/", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "X-CSRFToken": csrf
             },
-            body: JSON.stringify({ item_ids: ids })
-        }).then(() => location.reload());
+            body: JSON.stringify({ ids })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.deleted > 0) {
+                
+
+                // Actualizar la tabla con los resultados más recientes
+                updateArbitrageResults(data.snapshots);
+            } else {
+                alert("No se eliminaron snapshots");
+            }
+        })
+        .catch(error => {
+            console.error("❌ Error al eliminar los snapshots:", error);
+            alert("Hubo un error al eliminar los snapshots.");
+        });
+    } else {
+        console.log("Eliminación cancelada");
+    }
+});
+
+// Función para actualizar la tabla de arbitraje con los nuevos resultados
+function updateArbitrageResults(snapshots) {
+    const tableBody = document.querySelector("#arbitrage-results-container tbody");
+    tableBody.innerHTML = ''; // Limpiar la tabla existente
+
+    snapshots.forEach(s => {
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+            <td><input type="checkbox" class="snapshot-check" value="${s.id}"></td>
+            <td>${s.blizzard_id || "-"}</td>
+            <td>${s.item_name}</td>
+            <td>${s.best_buy_realm}</td>
+            <td>${s.buy_price} g</td>
+            <td>${s.best_sell_realm}</td>
+            <td>${s.estimated_sell_price} g</td>
+            <td class="profit">${s.profit} g</td>
+        `;
+
+        tableBody.appendChild(row);
     });
+}
+
     
     document.getElementById("delete-all-items")?.addEventListener("click", () => {
         if (!confirm("Eliminar TODOS los items?")) return;
@@ -130,23 +176,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     
     // ===================== Delete Snapshots =====================
-    document.getElementById("select-all-snapshots")?.addEventListener("change", e => {
-        document.querySelectorAll(".snapshot-check").forEach(cb => cb.checked = e.target.checked);
-    });
-    
-    document.getElementById("delete-selected")?.addEventListener("click", () => {
-        const ids = [...document.querySelectorAll(".snapshot-check:checked")].map(cb => cb.value);
-        if (!ids.length) return alert("Nada seleccionado");
-        
-        fetch("/api/delete-snapshots/", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": csrf
-            },
-            body: JSON.stringify({ ids })
-        }).then(() => location.reload());
-    });
+
     
     document.getElementById("delete-all")?.addEventListener("click", () => {
         if (!confirm("Eliminar TODOS los snapshots?")) return;
@@ -207,7 +237,4 @@ document.addEventListener("DOMContentLoaded", () => {
             alert("Error al agregar el item");
         });
     });
-
-
-    
 });
