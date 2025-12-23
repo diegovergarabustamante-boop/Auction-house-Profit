@@ -97,28 +97,56 @@ def load_realms():
 # ITEMS
 # ======================
 def get_item_id(token, item_name, cache):
+    """Obtiene el ID de Blizzard para un item, usando cache primero"""
+    
+    # Primero verificar si el item está en la cache local
     if item_name in cache:
+        print(f"📦 ID encontrado en cache para: {item_name}")
         return cache[item_name]
-
-    r = requests.get(
-        f"https://{REGION}.api.blizzard.com/data/wow/search/item",
-        headers={"Authorization": f"Bearer {token}"},
-        params={
-            "namespace": f"static-{REGION}",
-            "locale": LOCALE,
-            "name.en_US": item_name,
-            "_pageSize": 5,
-        },
-    )
-    r.raise_for_status()
-
-    for res in r.json().get("results", []):
-        name = res["data"]["name"].get(LOCALE)
-        if name and name.lower() == item_name.lower():
-            cache[item_name] = res["data"]["id"]
-            return cache[item_name]
-
-    return None
+    
+    # Si no está en cache, verificar en la base de datos primero
+    try:
+        item = Item.objects.get(name__iexact=item_name)
+        if item.blizzard_id:
+            print(f"💾 ID encontrado en base de datos para: {item_name}")
+            cache[item_name] = item.blizzard_id  # Guardar en cache para futuro
+            return item.blizzard_id
+    except Item.DoesNotExist:
+        pass  # Item no existe en BD, continuar con API
+    
+    print(f"🌐 Consultando API de Blizzard para: {item_name}")
+    
+    # Consultar API de Blizzard
+    try:
+        r = requests.get(
+            f"https://{REGION}.api.blizzard.com/data/wow/search/item",
+            headers={"Authorization": f"Bearer {token}"},
+            params={
+                "namespace": f"static-{REGION}",
+                "locale": LOCALE,
+                "name.en_US": item_name,
+                "_pageSize": 5,
+            },
+            timeout=10  # Timeout de 10 segundos
+        )
+        r.raise_for_status()
+        
+        for res in r.json().get("results", []):
+            name = res["data"]["name"].get(LOCALE)
+            if name and name.lower() == item_name.lower():
+                cache[item_name] = res["data"]["id"]
+                print(f"✅ ID obtenido de API para: {item_name}")
+                return cache[item_name]
+        
+        print(f"❌ Item no encontrado en API: {item_name}")
+        return None
+        
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Error de conexión con API de Blizzard: {e}")
+        return None
+    except Exception as e:
+        print(f"❌ Error inesperado en API: {e}")
+        return None
 
 
 # ======================

@@ -199,7 +199,7 @@ def assign_icon_to_item(item, is_decor=False):
 
 @require_POST
 def add_item(request):
-    """Añade un nuevo Item solo si se encuentra en Blizzard y obtiene el Blizzard Item ID desde la API."""
+    """Añade un nuevo Item solo si se encuentra en Blizzard"""
     print("🟢 ========== INICIO add_item ==========")
     data = json.loads(request.body)
     item_name = data.get("name", "").strip()
@@ -222,7 +222,59 @@ def add_item(request):
             return JsonResponse({"ok": False, "error": "Profesión no válida"}, status=400)
     
     # =======================
-    # OBTENER BLIZZARD ITEM ID
+    # PRIMERO VERIFICAR SI EL ITEM YA EXISTE
+    # =======================
+    print(f"🔍 Buscando si el item ya existe en base de datos: '{item_name}'")
+    
+    try:
+        # Intentar encontrar el item en la base de datos
+        existing_item = Item.objects.get(name__iexact=item_name)  # Case-insensitive
+        print(f"✅ Item ya existe en BD: {existing_item.name} (ID: {existing_item.id})")
+        
+        # Si ya existe, solo necesitamos activar el tracking
+        tracked, tracked_created = TrackedItem.objects.get_or_create(
+            item=existing_item,
+            defaults={"active": True}
+        )
+        
+        if not tracked.active:
+            tracked.active = True
+            tracked.save(update_fields=["active"])
+            print("✅ TrackedItem activado")
+        
+        print(f"✅ Item ya existente procesado: {existing_item.name}")
+        
+        # Obtener URL del icono
+        icon_url = None
+        if existing_item.icon and existing_item.icon.url:
+            icon_url = request.build_absolute_uri(existing_item.icon.url)
+        else:
+            icon_url = "https://wow.zamimg.com/images/wow/icons/large/inv_misc_rune_01.jpg"
+        
+        return JsonResponse({
+            "ok": True,
+            "item_id": existing_item.id,
+            "item_name": existing_item.name,
+            "blizzard_id": existing_item.blizzard_id,
+            "created_item": False,  # No se creó nuevo item
+            "is_decor": is_decor,
+            "tracked_created_at": tracked.created_at.strftime("%d/%m %H:%M") if tracked_created else tracked.formatted_created_at(),
+            "tracked_last_modified": tracked.last_modified.strftime("%d/%m %H:%M") if tracked_created else tracked.formatted_last_modified(),
+            "icon_url": icon_url,
+            "message": "Item ya existente - activado para seguimiento"
+        })
+        
+    except Item.DoesNotExist:
+        print(f"⚠️ Item NO encontrado en base de datos, consultando API de Blizzard...")
+        # El item no existe, proceder con la consulta a Blizzard
+        pass
+    
+    except Exception as e:
+        print(f"❌ Error buscando item en BD: {e}")
+        # Continuar con el flujo normal si hay error
+    
+    # =======================
+    # OBTENER BLIZZARD ITEM ID (solo si no existe)
     # =======================
     print("🔑 Obteniendo token de Blizzard...")
     token = get_token()  # obtener token Blizzard
@@ -240,7 +292,7 @@ def add_item(request):
     # =======================
     # CREAR ITEM Y TRACKED
     # =======================
-    print("🏗️ Creando/Actualizando Item en base de datos...")
+    print("🏗️ Creando Item en base de datos...")
     
     item, created = Item.objects.get_or_create(
         name=item_name,
@@ -252,7 +304,7 @@ def add_item(request):
     
     print(f"✅ Item {'creado' if created else 'encontrado'}: {item_name} (ID: {item.id})")
     
-    # Si ya existía, actualizar blizzard_id y profesión si es necesario
+    # Si ya existía (caso raro por el case-insensitive), actualizar blizzard_id y profesión
     updated_fields = []
     if not created:
         if item.blizzard_id != blizzard_id:
@@ -272,7 +324,8 @@ def add_item(request):
     # Crear o activar tracking
     print("🎯 Creando/Actualizando TrackedItem...")
     tracked, tracked_created = TrackedItem.objects.get_or_create(
-        item=item, defaults={"active": True}
+        item=item,
+        defaults={"active": True}
     )
     
     if not tracked.active:
@@ -282,12 +335,23 @@ def add_item(request):
     
     print(f"✅ TrackedItem {'creado' if tracked_created else 'encontrado'}")
     
-    # Asignar el icono al ítem
-    print("🖼️ Procesando icono...")
-    assign_icon_to_item(item, is_decor)
+    # Asignar el icono al ítem (solo para nuevos items o si no tiene icono)
+    if created or not item.icon:
+        print("🖼️ Procesando icono...")
+        assign_icon_to_item(item, is_decor)
+    else:
+        print("✅ Item ya tiene icono, omitiendo asignación")
     
     save_cache(cache)
     print(f"💾 Cache guardada")
+    
+    # Obtener URL del icono
+    icon_url = None
+    if item.icon and item.icon.url:
+        icon_url = request.build_absolute_uri(item.icon.url)
+    else:
+        icon_url = "https://wow.zamimg.com/images/wow/icons/large/inv_misc_rune_01.jpg"
+    
     print("🟢 ========== FIN add_item ==========")
     
     return JsonResponse({
@@ -296,7 +360,11 @@ def add_item(request):
         "item_name": item.name,
         "blizzard_id": item.blizzard_id,
         "created_item": created,
-        "is_decor": is_decor
+        "is_decor": is_decor,
+        "tracked_created_at": tracked.created_at.strftime("%d/%m %H:%M"),
+        "tracked_last_modified": tracked.last_modified.strftime("%d/%m %H:%M"),
+        "icon_url": icon_url,
+        "message": "Item nuevo creado exitosamente"
     })
 
 @require_POST
@@ -330,3 +398,32 @@ def delete_all_items(request):
     count = Item.objects.count()
     Item.objects.all().delete()
     return JsonResponse({"ok": True, "deleted_count": count})
+
+
+@require_POST
+def check_items_exist(request):
+    """Verifica rápidamente qué items ya existen en la base de datos"""
+    data = json.loads(request.body)
+    item_names = data.get("item_names", [])
+    
+    if not item_names:
+        return JsonResponse({"ok": False, "error": "No items provided"}, status=400)
+    
+    # Buscar items que ya existen (case-insensitive)
+    existing_items = Item.objects.filter(
+        name__in=[name for name in item_names]
+    ).values_list('name', flat=True)
+    
+    # Convertir a lowercase para comparación case-insensitive
+    existing_names_lower = {name.lower() for name in existing_items}
+    
+    result = {}
+    for item_name in item_names:
+        result[item_name] = item_name.lower() in existing_names_lower
+    
+    return JsonResponse({
+        "ok": True,
+        "results": result,
+        "existing_count": len(existing_names_lower),
+        "total_count": len(item_names)
+    })

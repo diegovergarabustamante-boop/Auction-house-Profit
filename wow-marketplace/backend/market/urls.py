@@ -9,6 +9,7 @@ urlpatterns = [
     path("api/update-tracked-items/", views.update_tracked_items, name="update_tracked_items"),
     path("api/add-tracked-item/", views.add_tracked_item, name="add_tracked_item"),
     path("add-item/", views.add_item, name="add_item"),
+    path("api/check-items-exist/", views.check_items_exist, name="check_items_exist"),
 
     # Eliminación de items
     path("delete-item/", views.delete_item, name="delete_item"),

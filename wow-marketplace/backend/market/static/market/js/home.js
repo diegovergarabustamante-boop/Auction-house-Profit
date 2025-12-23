@@ -1,22 +1,27 @@
 document.addEventListener("DOMContentLoaded", () => {
     const csrf = document.querySelector("[name=csrfmiddlewaretoken]").value;
     
-    // Función para formatear fecha ISO a hora local DD/MM HH:MM
+    // ===================== VARIABLES GLOBALES =====================
+    let itemsToProcess = []; // ¡DECLARADA AL INICIO!
+    let currentProcessingIndex = 0;
+    let successCount = 0;
+    let errorCount = 0;
+    let skippedCount = 0;
+    
+    // ===================== FUNCIONES AUXILIARES =====================
     function formatDateToLocal(isoDateString) {
         if (!isoDateString) return '-';
         
         try {
             const date = new Date(isoDateString);
             
-            // Verificar si la fecha es válida
             if (isNaN(date.getTime())) {
                 console.error('Fecha inválida:', isoDateString);
                 return 'Fecha inválida';
             }
             
-            // Obtener día, mes, horas y minutos
             const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0'); // Los meses van de 0-11
+            const month = String(date.getMonth() + 1).padStart(2, '0');
             const hours = String(date.getHours()).padStart(2, '0');
             const minutes = String(date.getMinutes()).padStart(2, '0');
             
@@ -27,24 +32,363 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
     
-    // Convertir todas las fechas en la página
     function convertAllDates() {
-        const dateCells = document.querySelectorAll('.date-cell[data-iso-date]');
-        
-        dateCells.forEach(cell => {
-            const isoDate = cell.getAttribute('data-iso-date');
-            if (isoDate && isoDate !== 'None') {
+        try {
+            const dateCells = document.querySelectorAll('.date-cell[data-iso-date]');
+            
+            dateCells.forEach(cell => {
+                const isoDate = cell.getAttribute('data-iso-date');
                 const localDate = formatDateToLocal(isoDate);
                 cell.textContent = localDate;
-            } else {
-                cell.textContent = '-';
-            }
-        });
+            });
+        } catch (error) {
+            console.error('Error convirtiendo fechas:', error);
+        }
     }
     
-    // Convertir fechas cuando se cargue la página
     convertAllDates();
     
+    // ===================== CARGAR MÚLTIPLES ITEMS DESDE TXT =====================
+    document.getElementById('load-txt-btn')?.addEventListener('click', processTxtFile);
+    document.getElementById('txt-file-input')?.addEventListener('change', handleFileSelect);
+    document.getElementById('download-template-btn')?.addEventListener('click', downloadTemplate);
+
+    function handleFileSelect(event) {
+        try {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // Validar tipo de archivo
+            if (!file.name.endsWith('.txt')) {
+                alert('❌ Solo se permiten archivos .txt');
+                event.target.value = '';
+                return;
+            }
+            
+            // Validar tamaño (max 100KB)
+            if (file.size > 100 * 1024) {
+                alert('❌ El archivo es demasiado grande (máximo 100KB)');
+                event.target.value = '';
+                return;
+            }
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const content = e.target.result;
+                    itemsToProcess = parseTxtContent(content);
+                    
+                    if (itemsToProcess.length === 0) {
+                        alert('❌ No se encontraron items válidos en el archivo');
+                        document.getElementById('file-info').style.display = 'none';
+                        return;
+                    }
+                    
+                    // Mostrar información del archivo
+                    document.getElementById('file-info').style.display = 'block';
+                    document.getElementById('file-name').textContent = file.name;
+                    document.getElementById('item-count').textContent = itemsToProcess.length;
+                    
+                    // Resetear contadores
+                    successCount = 0;
+                    errorCount = 0;
+                    skippedCount = 0;
+                    currentProcessingIndex = 0;
+                    
+                    console.log(`📄 ${itemsToProcess.length} items encontrados en el archivo`);
+                    alert(`✅ Se encontraron ${itemsToProcess.length} items para procesar`);
+                    
+                } catch (parseError) {
+                    alert('❌ Error al leer el archivo: ' + parseError.message);
+                    document.getElementById('file-info').style.display = 'none';
+                }
+            };
+            
+            reader.onerror = function() {
+                alert('❌ Error al leer el archivo');
+                document.getElementById('file-info').style.display = 'none';
+            };
+            
+            reader.readAsText(file, 'UTF-8');
+            
+        } catch (error) {
+            alert('❌ Error inesperado al cargar el archivo: ' + error.message);
+        }
+    }
+
+    function parseTxtContent(content) {
+        const lines = content.split('\n');
+        const items = [];
+        
+        lines.forEach((line, index) => {
+            const trimmedLine = line.trim();
+            
+            // Ignorar líneas vacías y comentarios
+            if (!trimmedLine || trimmedLine.startsWith('#')) {
+                return;
+            }
+            
+            // Validar longitud máxima
+            if (trimmedLine.length > 255) {
+                console.warn(`Línea ${index + 1}: Nombre demasiado largo, omitiendo`);
+                return;
+            }
+            
+            // Verificar si tiene ",decor" al final (case insensitive)
+            const lowerLine = trimmedLine.toLowerCase();
+            let isDecor = false;
+            let itemName = trimmedLine;
+            
+            // Manejar múltiples formas de especificar decor
+            if (lowerLine.endsWith(',decor') || lowerLine.endsWith(', decor')) {
+                isDecor = true;
+                // Extraer el nombre sin la parte decor
+                const decorIndex = lowerLine.lastIndexOf(',');
+                itemName = trimmedLine.substring(0, decorIndex).trim();
+            } else if (lowerLine.includes(',decor') || lowerLine.includes(', decor')) {
+                // Si tiene ,decor en cualquier parte (no solo al final)
+                isDecor = true;
+                itemName = trimmedLine.replace(/,\s*decor/gi, '').trim();
+            }
+            
+            // Validar que el nombre no esté vacío después de quitar ,decor
+            if (!itemName) {
+                console.warn(`Línea ${index + 1}: Nombre de item vacío, omitiendo`);
+                return;
+            }
+            
+            items.push({
+                name: itemName,
+                isDecor: isDecor,
+                originalLine: trimmedLine,
+                lineNumber: index + 1
+            });
+        });
+        
+        return items;
+    }
+
+    function processTxtFile() {
+        try {
+            if (!itemsToProcess || itemsToProcess.length === 0) {
+                alert('❌ No hay items para procesar. Primero carga un archivo TXT válido.');
+                return;
+            }
+            
+            if (itemsToProcess.length > 100) {
+                if (!confirm(`⚠️ Vas a procesar ${itemsToProcess.length} items. Esto puede tomar tiempo.\n¿Continuar?`)) {
+                    return;
+                }
+            }
+            
+            // Mostrar estado de procesamiento
+            const processingStatus = document.getElementById('processing-status');
+            processingStatus.style.display = 'block';
+            document.getElementById('success-count').style.display = 'none';
+            document.getElementById('error-count').style.display = 'none';
+            
+            // Resetear contadores
+            successCount = 0;
+            errorCount = 0;
+            skippedCount = 0;
+            currentProcessingIndex = 0;
+            
+            // Deshabilitar botón mientras se procesa
+            const loadBtn = document.getElementById('load-txt-btn');
+            const fileInput = document.getElementById('txt-file-input');
+            loadBtn.disabled = true;
+            fileInput.disabled = true;
+            loadBtn.textContent = '⏳ Procesando...';
+            
+            // Procesar el primer item
+            processNextItem();
+            
+        } catch (error) {
+            alert('❌ Error al iniciar el procesamiento: ' + error.message);
+        }
+    }
+
+    function processNextItem() {
+        if (currentProcessingIndex >= itemsToProcess.length) {
+            finishProcessing();
+            return;
+        }
+        
+        const item = itemsToProcess[currentProcessingIndex];
+        
+        try {
+            // Actualizar texto de progreso
+            document.getElementById('progress-text').textContent = 
+                `${currentProcessingIndex + 1}/${itemsToProcess.length} completados`;
+            
+            // Preparar datos para enviar
+            const data = {
+                name: item.name,
+                is_decor: item.isDecor
+            };
+            
+            // Enviar solicitud para añadir el item
+            fetch("/api/add-item/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrf
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.ok) {
+                    if (data.created_item === false && data.message && data.message.includes("ya existente")) {
+                        skippedCount++;
+                        console.log(`⏭️ Item ya existente (saltado): ${item.name}`);
+                    } else {
+                        successCount++;
+                        console.log(`✅ Item añadido: ${item.name} ${item.isDecor ? '(Decor)' : ''}`);
+                    }
+                } else {
+                    errorCount++;
+                    console.error(`❌ Error en línea ${item.lineNumber}: ${item.originalLine} - ${data.error || 'Error desconocido'}`);
+                }
+                
+                // Procesar siguiente item
+                currentProcessingIndex++;
+                
+                // Pausa ajustable basada en si el item ya existía
+                const delay = (data.created_item === false) ? 50 : 150;
+                setTimeout(processNextItem, delay);
+            })
+            .catch(error => {
+                errorCount++;
+                console.error(`❌ Error en línea ${item.lineNumber}: ${item.originalLine}`, error);
+                
+                currentProcessingIndex++;
+                setTimeout(processNextItem, 150);
+            });
+            
+        } catch (error) {
+            errorCount++;
+            console.error(`❌ Error en línea ${item.lineNumber}: "${item.originalLine}" - Error: ${error.message}`);
+            
+            currentProcessingIndex++;
+            setTimeout(processNextItem, 150);
+        }
+    }
+
+    function finishProcessing() {
+        try {
+            // Mostrar resultados
+            const successElement = document.getElementById('success-count');
+            const errorElement = document.getElementById('error-count');
+            
+            successElement.querySelector('span').textContent = successCount;
+            errorElement.querySelector('span').textContent = errorCount;
+            
+            // Mostrar también skipped si hay
+            if (skippedCount > 0) {
+                const skippedElement = document.createElement('div');
+                skippedElement.id = 'skipped-count';
+                skippedElement.style.cssText = 'color: #ffc107; margin-top: 5px; display: block;';
+                skippedElement.innerHTML = `⏭️ <span>${skippedCount}</span> items ya existían`;
+                successElement.parentNode.insertBefore(skippedElement, errorElement);
+            }
+            
+            successElement.style.display = successCount > 0 ? 'block' : 'none';
+            errorElement.style.display = errorCount > 0 ? 'block' : 'none';
+            
+            // Habilitar botones
+            const loadBtn = document.getElementById('load-txt-btn');
+            const fileInput = document.getElementById('txt-file-input');
+            loadBtn.disabled = false;
+            fileInput.disabled = false;
+            loadBtn.textContent = '📁 Cargar y Procesar TXT';
+            
+            // Limpiar input de archivo
+            document.getElementById('txt-file-input').value = '';
+            document.getElementById('file-info').style.display = 'none';
+            
+            // Mostrar resumen detallado
+            let message = `✅ **Procesamiento completado**\n\n`;
+            message += `**Resultados:**\n`;
+            message += `✓ ${successCount} items añadidos exitosamente\n`;
+            
+            if (skippedCount > 0) {
+                message += `⏭️ ${skippedCount} items ya existían (activados)\n`;
+            }
+            
+            if (errorCount > 0) {
+                message += `✗ ${errorCount} errores\n`;
+            }
+            
+            alert(message);
+            
+            // Recargar la página para ver los nuevos items
+            if (successCount > 0) {
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            }
+            
+        } catch (error) {
+            alert('❌ Error al finalizar el procesamiento: ' + error.message);
+        }
+    }
+
+    function downloadTemplate() {
+        const template = `# ==========================================
+# PLANTILLA PARA CARGAR MÚLTIPLES ITEMS
+# ==========================================
+#
+# INSTRUCCIONES:
+# - Un item por línea
+# - Máximo 255 caracteres por línea
+# - Líneas que comienzan con # son comentarios
+# - Líneas vacías se ignoran
+#
+# FORMATOS ACEPTADOS:
+# - Item normal: "Nombre del item"
+# - Item decorativo: "Nombre del item,decor"
+# - También acepta: "Nombre del item, decor" (con espacio)
+#
+# EJEMPLOS VÁLIDOS:
+# ==========================================
+
+# Items normales
+Sword of the Valiant
+Shield of Eternal Protection
+Potion of Healing
+
+# Items decorativos (añadir ,decor al final)
+Golden Statue,decor
+Ancient Tapestry,decor
+Crystal Prism, decor  # También funciona con espacio
+
+# Puedes añadir tantos items como necesites
+Último item de ejemplo
+Otro item decorativo final,decor`;
+
+        try {
+            const blob = new Blob([template], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'plantilla_items_wow.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            alert('✅ Plantilla descargada correctamente');
+        } catch (error) {
+            alert('❌ Error al descargar la plantilla: ' + error.message);
+        }
+    }
+
     // ===================== Update Auctions Polling =====================
     const updateBtn = document.getElementById("update-btn");
     let poller = null, wasRunning = false;
@@ -62,7 +406,10 @@ document.addEventListener("DOMContentLoaded", () => {
     
     function updateStatus() {
         fetch("/api/auction-status/")
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.json();
+        })
         .then(data => {
             const stateEl = document.getElementById("state"),
                   currentEl = document.getElementById("current"),
@@ -86,15 +433,36 @@ document.addEventListener("DOMContentLoaded", () => {
                 stopPolling();
                 if (wasRunning) location.reload();
             }
+        })
+        .catch(error => {
+            console.error('Error polling auction status:', error);
+            stopPolling();
+            updateBtn.disabled = false;
+            document.getElementById("state").innerText = "Error";
         });
     }
     
     updateBtn.addEventListener("click", () => {
+        updateBtn.disabled = true;
+        updateBtn.textContent = "🔄 Procesando...";
+        
         fetch("/api/update-auctions/", {
             method: "POST",
             headers: { "X-CSRFToken": csrf }
+        })
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            alert(`✅ Actualización iniciada. Se crearán ${data.created || 0} snapshots`);
+            startPolling();
+        })
+        .catch(error => {
+            alert('❌ Error al iniciar la actualización: ' + error.message);
+            updateBtn.disabled = false;
+            updateBtn.textContent = "🔄 Update Auctions";
         });
-        startPolling();
     });
     
     // ===================== Collapsable Tables =====================
@@ -290,261 +658,70 @@ document.addEventListener("DOMContentLoaded", () => {
     
     // ===================== Add Item =====================
     document.getElementById("add-item-btn")?.addEventListener("click", () => {
-        const name = document.getElementById("new-item-name").value.trim();
-        const prof = document.getElementById("new-item-profession").value;
-        const isDecor = document.getElementById("new-item-decor").checked;
-        
-        console.log("🚀 Paso 1 - Recogiendo datos del formulario:", { 
-            name, 
-            profession_id: prof, 
-            is_decor: isDecor 
-        });
-        
-        if (!name) return alert("Escribe un nombre de item");
-        
-        console.log("🚀 Paso 2 - Enviando solicitud a /api/add-item/");
-        
-        fetch("/api/add-item/", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": csrf
-            },
-            body: JSON.stringify({ 
-                name, 
-                profession_id: prof, 
-                is_decor: isDecor 
+        try {
+            const name = document.getElementById("new-item-name").value.trim();
+            const prof = document.getElementById("new-item-profession").value;
+            const isDecor = document.getElementById("new-item-decor").checked;
+            
+            if (!name) {
+                alert('❌ Por favor, escribe un nombre de item');
+                document.getElementById("new-item-name").focus();
+                return;
+            }
+            
+            // Validar longitud
+            if (name.length > 255) {
+                alert('❌ El nombre del item es demasiado largo (máximo 255 caracteres)');
+                return;
+            }
+            
+            // Deshabilitar botón durante la solicitud
+            const addBtn = document.getElementById("add-item-btn");
+            const originalText = addBtn.textContent;
+            addBtn.disabled = true;
+            addBtn.textContent = "⏳ Agregando...";
+            
+            fetch("/api/add-item/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrf
+                },
+                body: JSON.stringify({ 
+                    name, 
+                    profession_id: prof, 
+                    is_decor: isDecor 
+                })
             })
-        })
-        .then(r => r.json())
-        .then(data => {
-            console.log("🚀 Paso 3 - Respuesta del servidor recibida:", data);
-            
-            if (!data.ok) {
-                console.error("❌ Error del servidor:", data.error);
-                return alert("Error: " + (data.error || "desconocido"));
-            }
-            
-            console.log("✅ Paso 4 - Item agregado exitosamente");
-            document.getElementById("new-item-name").value = "";
-            document.getElementById("new-item-profession").value = "";
-            document.getElementById("new-item-decor").checked = false;
-            
-            console.log("🔄 Paso 5 - Recargando la página...");
-            location.reload();
-        })
-        .catch(error => {
-            console.error("❌ Error en la solicitud fetch:", error);
-            alert("Error al agregar el item");
-        });
-    });
-    
-    // ===================== Cargar múltiples items desde TXT =====================
-    document.getElementById('load-txt-btn')?.addEventListener('click', processTxtFile);
-    document.getElementById('txt-file-input')?.addEventListener('change', handleFileSelect);
-    document.getElementById('download-template-btn')?.addEventListener('click', downloadTemplate);
-
-    let itemsToProcess = [];
-    let currentProcessingIndex = 0;
-    let successCount = 0;
-    let errorCount = 0;
-
-    function handleFileSelect(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        
-        const reader = new FileReader();
-        
-        reader.onload = function(e) {
-            const content = e.target.result;
-            itemsToProcess = parseTxtContent(content);
-            
-            // Mostrar información del archivo
-            document.getElementById('file-info').style.display = 'block';
-            document.getElementById('file-name').textContent = file.name;
-            document.getElementById('item-count').textContent = itemsToProcess.length;
-            
-            // Resetear contadores
-            successCount = 0;
-            errorCount = 0;
-            currentProcessingIndex = 0;
-            
-            console.log(`📄 ${itemsToProcess.length} items encontrados en el archivo`);
-        };
-        
-        reader.readAsText(file);
-    }
-
-    function parseTxtContent(content) {
-        const lines = content.split('\n');
-        const items = [];
-        
-        lines.forEach((line, index) => {
-            const trimmedLine = line.trim();
-            if (trimmedLine && !trimmedLine.startsWith('#')) { // Ignorar líneas vacías y comentarios
-                // Verificar si tiene ",decor" al final (case insensitive)
-                const isDecor = trimmedLine.toLowerCase().endsWith(',decor');
-                
-                // Extraer el nombre del item (sin ,decor si existe)
-                let itemName = trimmedLine;
-                if (isDecor) {
-                    itemName = trimmedLine.substring(0, trimmedLine.length - 6).trim();
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                if (data.ok) {
+                    alert(`✅ Item "${name}" agregado exitosamente`);
+                    document.getElementById("new-item-name").value = "";
+                    document.getElementById("new-item-profession").value = "";
+                    document.getElementById("new-item-decor").checked = false;
+                    
+                    // Recargar después de un breve delay
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    throw new Error(data.error || "Error desconocido del servidor");
                 }
-                
-                items.push({
-                    name: itemName,
-                    isDecor: isDecor,
-                    originalLine: trimmedLine,
-                    lineNumber: index + 1
-                });
-            }
-        });
-        
-        return items;
-    }
-
-    function processTxtFile() {
-        if (itemsToProcess.length === 0) {
-            alert('❌ No hay items para procesar. Primero carga un archivo TXT.');
-            return;
-        }
-        
-        // Mostrar estado de procesamiento
-        const processingStatus = document.getElementById('processing-status');
-        processingStatus.style.display = 'block';
-        document.getElementById('success-count').style.display = 'none';
-        document.getElementById('error-count').style.display = 'none';
-        
-        // Resetear contadores
-        successCount = 0;
-        errorCount = 0;
-        currentProcessingIndex = 0;
-        
-        // Deshabilitar botón mientras se procesa
-        const loadBtn = document.getElementById('load-txt-btn');
-        loadBtn.disabled = true;
-        loadBtn.textContent = '⏳ Procesando...';
-        
-        // Procesar el primer item
-        processNextItem();
-    }
-
-    function processNextItem() {
-        if (currentProcessingIndex >= itemsToProcess.length) {
-            // Procesamiento completado
-            finishProcessing();
-            return;
-        }
-        
-        const item = itemsToProcess[currentProcessingIndex];
-        
-        // Actualizar texto de progreso
-        document.getElementById('progress-text').textContent = 
-            `${currentProcessingIndex + 1}/${itemsToProcess.length} completados`;
-        
-        // Preparar datos para enviar
-        const data = {
-            name: item.name,
-            is_decor: item.isDecor
-        };
-        
-        // Enviar solicitud para añadir el item
-        fetch("/api/add-item/", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": csrf
-            },
-            body: JSON.stringify(data)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.ok) {
-                successCount++;
-                console.log(`✅ Item añadido: ${item.name} ${item.isDecor ? '(Decor)' : ''}`);
-            } else {
-                errorCount++;
-                console.error(`❌ Error en línea ${item.lineNumber}: ${item.originalLine} - ${data.error || 'Error desconocido'}`);
-            }
+            })
+            .catch(error => {
+                alert('❌ Error al agregar el item: ' + error.message);
+            })
+            .finally(() => {
+                addBtn.disabled = false;
+                addBtn.textContent = originalText;
+            });
             
-            // Procesar siguiente item
-            currentProcessingIndex++;
-            
-            // Pequeña pausa para no sobrecargar el servidor
-            setTimeout(processNextItem, 100);
-        })
-        .catch(error => {
-            errorCount++;
-            console.error(`❌ Error en línea ${item.lineNumber}: ${item.originalLine}`, error);
-            
-            currentProcessingIndex++;
-            setTimeout(processNextItem, 100);
-        });
-    }
-
-    function finishProcessing() {
-        // Mostrar resultados
-        const successElement = document.getElementById('success-count');
-        const errorElement = document.getElementById('error-count');
-        
-        successElement.querySelector('span').textContent = successCount;
-        errorElement.querySelector('span').textContent = errorCount;
-        
-        successElement.style.display = successCount > 0 ? 'block' : 'none';
-        errorElement.style.display = errorCount > 0 ? 'block' : 'none';
-        
-        // Actualizar botón
-        const loadBtn = document.getElementById('load-txt-btn');
-        loadBtn.disabled = false;
-        loadBtn.textContent = '📁 Cargar y Procesar TXT';
-        
-        // Limpiar input de archivo
-        document.getElementById('txt-file-input').value = '';
-        
-        // Mostrar resumen
-        let message = `✅ Procesamiento completado:\n`;
-        message += `✓ ${successCount} items añadidos exitosamente\n`;
-        if (errorCount > 0) {
-            message += `✗ ${errorCount} errores (ver consola para detalles)`;
+        } catch (error) {
+            alert('❌ Error inesperado: ' + error.message);
         }
-        
-        alert(message);
-        
-        // Recargar la página para ver los nuevos items
-        if (successCount > 0) {
-            setTimeout(() => {
-                location.reload();
-            }, 1500);
-        }
-    }
-
-    function downloadTemplate() {
-        const template = `# Plantilla para cargar múltiples items
-# Un item por línea
-# Para items decorativos, añade ",decor" al final
-# Las líneas que comienzan con # son comentarios
-# Las líneas vacías se ignoran
-
-Este es item 1
-Este es item 2
-Este es item 3,decor
-Este es item 4
-
-# Más ejemplos:
-Item de ejemplo normal
-Otro item decorativo,decor
-Último item de prueba`;
-
-        const blob = new Blob([template], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'plantilla_items.txt';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }
+    });
     
     // Select all snapshots checkbox
     document.getElementById("select-all-snapshots")?.addEventListener("change", e => {
