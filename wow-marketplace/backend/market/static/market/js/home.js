@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const csrf = document.querySelector("[name=csrfmiddlewaretoken]").value;
     
     // ===================== VARIABLES GLOBALES =====================
-    let itemsToProcess = []; // ¡DECLARADA AL INICIO!
+    let itemsToProcess = [];
     let currentProcessingIndex = 0;
     let successCount = 0;
     let errorCount = 0;
@@ -48,7 +48,135 @@ document.addEventListener("DOMContentLoaded", () => {
     
     convertAllDates();
     
-    // ===================== CARGAR MÚLTIPLES ITEMS DESDE TXT =====================
+    // ===================== FUNCIONES PARA PROCESAR TXT =====================
+    // Mapeo de profesiones (inglés/español a inglés estándar)
+    function normalizeProfession(professionName) {
+        if (!professionName) return null;
+        
+        const professionMap = {
+            // Español a Inglés
+            'alquimia': 'Alchemy',
+            'herrería': 'Blacksmithing',
+            'encantamiento': 'Enchanting',
+            'ingeniería': 'Engineering',
+            'herboristería': 'Herbalism',
+            'inscripción': 'Inscription',
+            'joyería': 'Jewelcrafting',
+            'pelambre': 'Leatherworking',
+            'minería': 'Mining',
+            'desuello': 'Skinning',
+            'sastrería': 'Tailoring',
+            'cocina': 'Cooking',
+            'pesca': 'Fishing',
+            'arqueología': 'Archaeology',
+            
+            // Inglés (varias formas)
+            'alchemy': 'Alchemy',
+            'alquimia': 'Alchemy',
+            'blacksmithing': 'Blacksmithing',
+            'enchanting': 'Enchanting',
+            'engineering': 'Engineering',
+            'herbalism': 'Herbalism',
+            'inscription': 'Inscription',
+            'jewelcrafting': 'Jewelcrafting',
+            'leatherworking': 'Leatherworking',
+            'mining': 'Mining',
+            'skinning': 'Skinning',
+            'tailoring': 'Tailoring',
+            'cooking': 'Cooking',
+            'fishing': 'Fishing',
+            'archaeology': 'Archaeology'
+        };
+        
+        const normalized = professionName.toLowerCase();
+        return professionMap[normalized] || professionName;
+    }
+    
+    // Lista de palabras clave para profesiones (para validación)
+    const professionKeywords = [
+        'alchemy', 'alquimia', 'blacksmithing', 'herrería', 'enchanting', 'encantamiento',
+        'engineering', 'ingeniería', 'herbalism', 'herboristería', 'inscription', 'inscripción',
+        'jewelcrafting', 'joyería', 'leatherworking', 'pelambre', 'mining', 'minería',
+        'skinning', 'desuello', 'tailoring', 'sastrería', 'cooking', 'cocina',
+        'fishing', 'pesca', 'archaeology', 'arqueología'
+    ];
+    
+    function parseTxtContent(content) {
+        const lines = content.split('\n');
+        const items = [];
+        
+        lines.forEach((line, index) => {
+            const trimmedLine = line.trim();
+            
+            // Ignorar líneas vacías y comentarios
+            if (!trimmedLine || trimmedLine.startsWith('#')) {
+                return;
+            }
+            
+            // Validar longitud máxima
+            if (trimmedLine.length > 255) {
+                console.warn(`Línea ${index + 1}: Nombre demasiado largo, omitiendo`);
+                return;
+            }
+            
+            // Parsear la línea separando por comas
+            const parts = trimmedLine.split(',').map(part => part.trim());
+            
+            if (parts.length === 0) {
+                console.warn(`Línea ${index + 1}: Línea vacía después de trim, omitiendo`);
+                return;
+            }
+            
+            let itemName = parts[0];
+            let isDecor = false;
+            let profession = null;
+            
+            // Analizar las partes restantes (a partir del índice 1)
+            for (let i = 1; i < parts.length; i++) {
+                const part = parts[i].toLowerCase();
+                
+                // Verificar si es "decor"
+                if (part === 'decor') {
+                    isDecor = true;
+                }
+                // Verificar si es una profesión
+                else if (professionKeywords.includes(part)) {
+                    if (!profession) { // Solo tomar la primera profesión encontrada
+                        profession = normalizeProfession(parts[i]); // Usar el texto original para normalizar
+                    }
+                }
+                // Si no es ni decor ni profesión conocida, y es la primera parte adicional
+                // podría ser un error del usuario, pero lo agregamos al nombre
+                else if (i === 1) {
+                    // Podría ser un nombre con coma, lo agregamos al nombre principal
+                    itemName += `, ${parts[i]}`;
+                }
+            }
+            
+            // Validar que el nombre no esté vacío
+            if (!itemName) {
+                console.warn(`Línea ${index + 1}: Nombre de item vacío, omitiendo`);
+                return;
+            }
+            
+            items.push({
+                name: itemName,
+                isDecor: isDecor,
+                profession: profession,
+                originalLine: trimmedLine,
+                lineNumber: index + 1
+            });
+        });
+        
+        // Resumen de parsing
+        const decorCount = items.filter(item => item.isDecor).length;
+        const professionCount = items.filter(item => item.profession).length;
+        console.log(`📊 Resumen parsing: ${items.length} items, ${decorCount} decorativos, ${professionCount} con profesión`);
+        
+        return items;
+    }
+    
+    // ===================== EVENT LISTENERS PARA TXT =====================
     document.getElementById('load-txt-btn')?.addEventListener('click', processTxtFile);
     document.getElementById('txt-file-input')?.addEventListener('change', handleFileSelect);
     document.getElementById('download-template-btn')?.addEventListener('click', downloadTemplate);
@@ -90,6 +218,25 @@ document.addEventListener("DOMContentLoaded", () => {
                     document.getElementById('file-name').textContent = file.name;
                     document.getElementById('item-count').textContent = itemsToProcess.length;
                     
+                    // Contar items con profesión y decor
+                    const withProfession = itemsToProcess.filter(item => item.profession).length;
+                    const withDecor = itemsToProcess.filter(item => item.isDecor).length;
+                    
+                    // Mostrar detalles adicionales
+                    const details = document.createElement('div');
+                    details.id = 'file-details';
+                    details.style.cssText = 'font-size: 0.8em; margin-top: 5px; color: #a5b4fc;';
+                    details.innerHTML = `
+                        <div>📊 ${withProfession} con profesión | ${withDecor} decorativos</div>
+                    `;
+                    
+                    const fileInfo = document.getElementById('file-info');
+                    if (!document.getElementById('file-details')) {
+                        fileInfo.appendChild(details);
+                    } else {
+                        document.getElementById('file-details').innerHTML = details.innerHTML;
+                    }
+                    
                     // Resetear contadores
                     successCount = 0;
                     errorCount = 0;
@@ -97,7 +244,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     currentProcessingIndex = 0;
                     
                     console.log(`📄 ${itemsToProcess.length} items encontrados en el archivo`);
-                    alert(`✅ Se encontraron ${itemsToProcess.length} items para procesar`);
                     
                 } catch (parseError) {
                     alert('❌ Error al leer el archivo: ' + parseError.message);
@@ -115,58 +261,6 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (error) {
             alert('❌ Error inesperado al cargar el archivo: ' + error.message);
         }
-    }
-
-    function parseTxtContent(content) {
-        const lines = content.split('\n');
-        const items = [];
-        
-        lines.forEach((line, index) => {
-            const trimmedLine = line.trim();
-            
-            // Ignorar líneas vacías y comentarios
-            if (!trimmedLine || trimmedLine.startsWith('#')) {
-                return;
-            }
-            
-            // Validar longitud máxima
-            if (trimmedLine.length > 255) {
-                console.warn(`Línea ${index + 1}: Nombre demasiado largo, omitiendo`);
-                return;
-            }
-            
-            // Verificar si tiene ",decor" al final (case insensitive)
-            const lowerLine = trimmedLine.toLowerCase();
-            let isDecor = false;
-            let itemName = trimmedLine;
-            
-            // Manejar múltiples formas de especificar decor
-            if (lowerLine.endsWith(',decor') || lowerLine.endsWith(', decor')) {
-                isDecor = true;
-                // Extraer el nombre sin la parte decor
-                const decorIndex = lowerLine.lastIndexOf(',');
-                itemName = trimmedLine.substring(0, decorIndex).trim();
-            } else if (lowerLine.includes(',decor') || lowerLine.includes(', decor')) {
-                // Si tiene ,decor en cualquier parte (no solo al final)
-                isDecor = true;
-                itemName = trimmedLine.replace(/,\s*decor/gi, '').trim();
-            }
-            
-            // Validar que el nombre no esté vacío después de quitar ,decor
-            if (!itemName) {
-                console.warn(`Línea ${index + 1}: Nombre de item vacío, omitiendo`);
-                return;
-            }
-            
-            items.push({
-                name: itemName,
-                isDecor: isDecor,
-                originalLine: trimmedLine,
-                lineNumber: index + 1
-            });
-        });
-        
-        return items;
     }
 
     function processTxtFile() {
@@ -187,6 +281,10 @@ document.addEventListener("DOMContentLoaded", () => {
             processingStatus.style.display = 'block';
             document.getElementById('success-count').style.display = 'none';
             document.getElementById('error-count').style.display = 'none';
+            
+            // Limpiar detalles anteriores de skipped
+            const skippedElement = document.getElementById('skipped-count');
+            if (skippedElement) skippedElement.remove();
             
             // Resetear contadores
             successCount = 0;
@@ -225,7 +323,8 @@ document.addEventListener("DOMContentLoaded", () => {
             // Preparar datos para enviar
             const data = {
                 name: item.name,
-                is_decor: item.isDecor
+                is_decor: item.isDecor,
+                profession_name: item.profession || ''  // Enviar nombre de profesión si existe
             };
             
             // Enviar solicitud para añadir el item
@@ -245,12 +344,14 @@ document.addEventListener("DOMContentLoaded", () => {
             })
             .then(data => {
                 if (data.ok) {
-                    if (data.created_item === false && data.message && data.message.includes("ya existente")) {
+                    if (data.created_item === false) {
                         skippedCount++;
-                        console.log(`⏭️ Item ya existente (saltado): ${item.name}`);
+                        const profMsg = data.profession_name ? ` [${data.profession_name}]` : '';
+                        console.log(`⏭️ Item ya existente: ${item.name}${item.isDecor ? ' (Decor)' : ''}${profMsg}`);
                     } else {
                         successCount++;
-                        console.log(`✅ Item añadido: ${item.name} ${item.isDecor ? '(Decor)' : ''}`);
+                        const profMsg = data.profession_name ? ` [${data.profession_name}]` : '';
+                        console.log(`✅ Item añadido: ${item.name}${item.isDecor ? ' (Decor)' : ''}${profMsg}`);
                     }
                 } else {
                     errorCount++;
@@ -316,7 +417,10 @@ document.addEventListener("DOMContentLoaded", () => {
             // Mostrar resumen detallado
             let message = `✅ **Procesamiento completado**\n\n`;
             message += `**Resultados:**\n`;
-            message += `✓ ${successCount} items añadidos exitosamente\n`;
+            
+            if (successCount > 0) {
+                message += `✓ ${successCount} items añadidos exitosamente\n`;
+            }
             
             if (skippedCount > 0) {
                 message += `⏭️ ${skippedCount} items ya existían (activados)\n`;
@@ -324,6 +428,10 @@ document.addEventListener("DOMContentLoaded", () => {
             
             if (errorCount > 0) {
                 message += `✗ ${errorCount} errores\n`;
+            }
+            
+            if (successCount === 0 && skippedCount === 0 && errorCount === 0) {
+                message += `ℹ️ No se procesó ningún item`;
             }
             
             alert(message);
@@ -352,9 +460,42 @@ document.addEventListener("DOMContentLoaded", () => {
 # - Líneas vacías se ignoran
 #
 # FORMATOS ACEPTADOS:
-# - Item normal: "Nombre del item"
-# - Item decorativo: "Nombre del item,decor"
-# - También acepta: "Nombre del item, decor" (con espacio)
+# 1. Item normal: 
+#    "Nombre del item"
+#
+# 2. Item decorativo: 
+#    "Nombre del item,decor"
+#
+# 3. Item con profesión: 
+#    "Nombre del item,Enchanting"
+#    "Nombre del item,Jewelcrafting"
+#    "Nombre del item,Alquimia" (español también funciona)
+#
+# 4. Item decorativo con profesión: 
+#    "Nombre del item,decor,Enchanting"
+#    "Nombre del item,decor,Jewelcrafting"
+#    "Nombre del item,decor,Alquimia"
+#
+# NOTA: El orden es importante:
+# - Primero el nombre
+# - Luego "decor" si es decorativo (opcional)
+# - Luego la profesión (opcional)
+#
+# PROFESIONES SOPORTADAS (inglés o español):
+# - Alchemy / Alquimia
+# - Blacksmithing / Herrería
+# - Enchanting / Encantamiento
+# - Engineering / Ingeniería
+# - Herbalism / Herboristería
+# - Inscription / Inscripción
+# - Jewelcrafting / Joyería
+# - Leatherworking / Pelambre
+# - Mining / Minería
+# - Skinning / Desuello
+# - Tailoring / Sastrería
+# - Cooking / Cocina
+# - Fishing / Pesca
+# - Archaeology / Arqueología
 #
 # EJEMPLOS VÁLIDOS:
 # ==========================================
@@ -364,14 +505,39 @@ Sword of the Valiant
 Shield of Eternal Protection
 Potion of Healing
 
-# Items decorativos (añadir ,decor al final)
+# Items decorativos
 Golden Statue,decor
 Ancient Tapestry,decor
-Crystal Prism, decor  # También funciona con espacio
+Crystal Prism,decor
+
+# Items con profesión (inglés)
+Enchanted Vellum,Enchanting
+Golden Necklace,Jewelcrafting
+Mithril Bar,Blacksmithing
+Netherweave Cloth,Tailoring
+
+# Items con profesión (español)
+Poción de maná,Alquimia
+Armadura de cuero,Pelambre
+Varita encantada,Encantamiento
+
+# Items decorativos con profesión
+Enchanted Crystal,decor,Enchanting
+Jeweled Crown,decor,Jewelcrafting
+Ornate Shield,decor,Blacksmithing
+
+# Items decorativos con profesión (español)
+Tótem decorativo,decor,Alquimia
+Estatua joyada,decor,Joyería
+
+# Combinaciones complejas
+Heavy Mithril Axe,Blacksmithing
+Enchanted Mithril Axe,decor,Enchanting
+Enchanted Golden Ring,decor,Jewelcrafting
 
 # Puedes añadir tantos items como necesites
 Último item de ejemplo
-Otro item decorativo final,decor`;
+Otro item decorativo final,decor,Jewelcrafting`;
 
         try {
             const blob = new Blob([template], { type: 'text/plain;charset=utf-8' });
@@ -389,6 +555,8 @@ Otro item decorativo final,decor`;
         }
     }
 
+    // ===================== RESTO DEL CÓDIGO (sin cambios) =====================
+    // [Aquí va el resto de tu código existente sin cambios...]
     // ===================== Update Auctions Polling =====================
     const updateBtn = document.getElementById("update-btn");
     let poller = null, wasRunning = false;
@@ -656,7 +824,7 @@ Otro item decorativo final,decor`;
         }
     }
     
-    // ===================== Add Item =====================
+    // ===================== Add Item (formulario individual) =====================
     document.getElementById("add-item-btn")?.addEventListener("click", () => {
         try {
             const name = document.getElementById("new-item-name").value.trim();

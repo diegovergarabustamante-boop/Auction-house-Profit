@@ -74,8 +74,10 @@
 Item normal 1
 Item normal 2
 Item decorativo,decor
-Item normal 3</pre>
-                            <em style="font-size: 0.8em;">Un item por línea. Para items decorativos añade ",decor" al final.</em>
+Item normal 3,Enchanting
+Item decorativo con profesión,decor,Jewelcrafting
+Item en español,Alquimia</pre>
+                            <em style="font-size: 0.8em;">Un item por línea. Para items decorativos añade ",decor". Para profesión añade ",NombreProfesión".</em>
                         </div>
                     </td>
                 </tr>
@@ -94,6 +96,7 @@ Item normal 3</pre>
                     <th>Item ID (Blizzard)</th>
                     <th>Item</th>
                     <th>Icono</th>
+                    <th>Profesión</th> <!-- NUEVA COLUMNA -->
                     <th>Añadido el</th>
                     <th>Activo</th>
                     <th>Eliminar</th>
@@ -106,7 +109,16 @@ Item normal 3</pre>
                         <input type="checkbox" class="item-check" value="{{ item.id }}" {% if item.tracking and item.tracking.active %}checked{% endif %}>
                     </td>
                     <td>{{ item.blizzard_id|default:"-" }}</td>
-                    <td>{{ item.name }}</td>
+                    <td>
+                        {{ item.name }}
+                        {% if item.icon and "inv_misc_rune" not in item.icon.url %}
+                        <span class="decor-badge" style="font-size: 0.7em; color: #ffc107; margin-left: 5px;">
+                            {% if "decor" in item.name|lower or item.tracking and item.tracking.is_decor %}
+                            🎨
+                            {% endif %}
+                        </span>
+                        {% endif %}
+                    </td>
                     <td>
                         {% if item.icon %}
                         <img src="{{ item.icon.url }}" alt="{{ item.name }} icon" style="width: 50px; height: 50px;">
@@ -114,6 +126,37 @@ Item normal 3</pre>
                         <img src="https://wow.zamimg.com/images/wow/icons/large/inv_misc_rune_01.jpg"
                             alt="{{ item.name }} icon"
                             style="width: 50px; height: 50px;">
+                        {% endif %}
+                    </td>
+                    <td class="profession-cell">
+                        {% if item.profession %}
+                        <span class="profession-badge" style="
+                            background-color: {% if item.profession.name == 'Alchemy' %}#ff6b6b
+                                            {% elif item.profession.name == 'Blacksmithing' %}#4ecdc4
+                                            {% elif item.profession.name == 'Enchanting' %}#45b7d1
+                                            {% elif item.profession.name == 'Engineering' %}#96ceb4
+                                            {% elif item.profession.name == 'Herbalism' %}#feca57
+                                            {% elif item.profession.name == 'Inscription' %}#ff9ff3
+                                            {% elif item.profession.name == 'Jewelcrafting' %}#54a0ff
+                                            {% elif item.profession.name == 'Leatherworking' %}#5f27cd
+                                            {% elif item.profession.name == 'Mining' %}#8395a7
+                                            {% elif item.profession.name == 'Skinning' %}#ff9f43
+                                            {% elif item.profession.name == 'Tailoring' %}#ee5a24
+                                            {% elif item.profession.name == 'Cooking' %}#10ac84
+                                            {% elif item.profession.name == 'Fishing' %}#0abde3
+                                            {% elif item.profession.name == 'Archaeology' %}#576574
+                                            {% else %}#6c757d{% endif %};
+                            color: white;
+                            padding: 2px 6px;
+                            border-radius: 10px;
+                            font-size: 0.75em;
+                            white-space: nowrap;
+                            display: inline-block;
+                        ">
+                            {{ item.profession.name }}
+                        </span>
+                        {% else %}
+                        <span style="color: #94a3b8; font-style: italic; font-size: 0.85em;">-</span>
                         {% endif %}
                     </td>
                     <!-- Usar data-attribute para la fecha ISO (UTC) -->
@@ -124,7 +167,13 @@ Item normal 3</pre>
                             -
                         {% endif %}
                     </td>
-                    <td>{% if item.tracking and item.tracking.active %}✅{% else %}❌{% endif %}</td>
+                    <td class="active-cell">
+                        {% if item.tracking and item.tracking.active %}
+                        <span style="color: #4CAF50; font-weight: bold;">✅</span>
+                        {% else %}
+                        <span style="color: #dc3545; font-weight: bold;">❌</span>
+                        {% endif %}
+                    </td>
                     <td>
                         <button class="delete-item-btn" data-id="{{ item.id }}">🗑️</button>
                     </td>
@@ -153,6 +202,7 @@ Item normal 3</pre>
                     <th>Item</th>
                     <th>Icono</th>
                     <th>Snapshot tomado</th>
+                    <th>Profesión</th> <!-- NUEVA COLUMNA -->
                     <th>Buy Realm</th>
                     <th>Buy Price</th>
                     <th>Sell Realm</th>
@@ -165,7 +215,16 @@ Item normal 3</pre>
                 <tr>
                     <td><input type="checkbox" class="snapshot-check" value="{{ s.id }}"></td>
                     <td>{{ s.item.blizzard_id }}</td>
-                    <td>{{ s.item.name }}</td>
+                    <td>
+                        {{ s.item.name }}
+                        {% if s.item.icon and "inv_misc_rune" not in s.item.icon.url %}
+                        <span class="decor-badge" style="font-size: 0.7em; color: #ffc107; margin-left: 5px;">
+                            {% if "decor" in s.item.name|lower %}
+                            🎨
+                            {% endif %}
+                        </span>
+                        {% endif %}
+                    </td>
                     <td>
                         {% if s.item.icon %}
                         <img src="{{ s.item.icon.url }}" alt="{{ s.item.name }} icon" style="width: 50px; height: 50px;">
@@ -178,6 +237,37 @@ Item normal 3</pre>
                     <!-- Usar data-attribute para la fecha ISO (UTC) -->
                     <td class="date-cell" data-iso-date="{{ s.created_at|date:'c' }}">
                         Cargando...
+                    </td>
+                    <td class="profession-cell">
+                        {% if s.item.profession %}
+                        <span class="profession-badge" style="
+                            background-color: {% if s.item.profession.name == 'Alchemy' %}#ff6b6b
+                                            {% elif s.item.profession.name == 'Blacksmithing' %}#4ecdc4
+                                            {% elif s.item.profession.name == 'Enchanting' %}#45b7d1
+                                            {% elif s.item.profession.name == 'Engineering' %}#96ceb4
+                                            {% elif s.item.profession.name == 'Herbalism' %}#feca57
+                                            {% elif s.item.profession.name == 'Inscription' %}#ff9ff3
+                                            {% elif s.item.profession.name == 'Jewelcrafting' %}#54a0ff
+                                            {% elif s.item.profession.name == 'Leatherworking' %}#5f27cd
+                                            {% elif s.item.profession.name == 'Mining' %}#8395a7
+                                            {% elif s.item.profession.name == 'Skinning' %}#ff9f43
+                                            {% elif s.item.profession.name == 'Tailoring' %}#ee5a24
+                                            {% elif s.item.profession.name == 'Cooking' %}#10ac84
+                                            {% elif s.item.profession.name == 'Fishing' %}#0abde3
+                                            {% elif s.item.profession.name == 'Archaeology' %}#576574
+                                            {% else %}#6c757d{% endif %};
+                            color: white;
+                            padding: 2px 6px;
+                            border-radius: 10px;
+                            font-size: 0.75em;
+                            white-space: nowrap;
+                            display: inline-block;
+                        ">
+                            {{ s.item.profession.name }}
+                        </span>
+                        {% else %}
+                        <span style="color: #94a3b8; font-style: italic; font-size: 0.85em;">-</span>
+                        {% endif %}
                     </td>
                     <td>{{ s.best_buy_realm.name }}</td>
                     <td>{{ s.buy_price }} g</td>

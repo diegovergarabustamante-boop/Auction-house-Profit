@@ -204,19 +204,76 @@ def add_item(request):
     data = json.loads(request.body)
     item_name = data.get("name", "").strip()
     profession_id = data.get("profession_id")
+    profession_name = data.get("profession_name", "").strip()  # Nuevo: profesión por nombre
     is_decor = data.get("is_decor", False)
     
-    print(f"📋 Datos recibidos: nombre='{item_name}', profesión_id={profession_id}, is_decor={is_decor}")
+    print(f"📋 Datos recibidos: nombre='{item_name}', profesión_id={profession_id}, profesión_nombre='{profession_name}', is_decor={is_decor}")
     
     if not item_name:
         print("❌ Error: Nombre vacío")
         return JsonResponse({"ok": False, "error": "No name provided"}, status=400)
     
     profession = None
-    if profession_id:
+    
+    # Mapeo de nombres de profesión (inglés/español a inglés)
+    profession_name_mapping = {
+        # Español a Inglés
+        'alquimia': 'Alchemy',
+        'herrería': 'Blacksmithing',
+        'encantamiento': 'Enchanting',
+        'ingeniería': 'Engineering',
+        'herboristería': 'Herbalism',
+        'inscripción': 'Inscription',
+        'joyería': 'Jewelcrafting',
+        'pelambre': 'Leatherworking',
+        'minería': 'Mining',
+        'desuello': 'Skinning',
+        'sastrería': 'Tailoring',
+        'cocina': 'Cooking',
+        'pesca': 'Fishing',
+        'arqueología': 'Archaeology',
+        
+        # Inglés (asegurar formato correcto)
+        'alchemy': 'Alchemy',
+        'blacksmithing': 'Blacksmithing',
+        'enchanting': 'Enchanting',
+        'engineering': 'Engineering',
+        'herbalism': 'Herbalism',
+        'inscription': 'Inscription',
+        'jewelcrafting': 'Jewelcrafting',
+        'leatherworking': 'Leatherworking',
+        'mining': 'Mining',
+        'skinning': 'Skinning',
+        'tailoring': 'Tailoring',
+        'cooking': 'Cooking',
+        'fishing': 'Fishing',
+        'archaeology': 'Archaeology'
+    }
+    
+    # Primero intentar por nombre de profesión (si se proporciona)
+    if profession_name:
+        normalized_profession_name = profession_name.lower()
+        english_profession_name = profession_name_mapping.get(normalized_profession_name)
+        
+        if english_profession_name:
+            try:
+                profession = Profession.objects.get(name__iexact=english_profession_name)
+                print(f"✅ Profesión encontrada por nombre: {profession.name}")
+            except Profession.DoesNotExist:
+                print(f"⚠️ Profesión no encontrada en BD: '{english_profession_name}'")
+                # Podemos crear la profesión automáticamente
+                try:
+                    profession = Profession.objects.create(name=english_profession_name)
+                    print(f"✅ Profesión creada automáticamente: {profession.name}")
+                except Exception as e:
+                    print(f"❌ Error creando profesión: {e}")
+        else:
+            print(f"⚠️ Nombre de profesión no reconocido: '{profession_name}'")
+    # Si no hay nombre, intentar por ID
+    elif profession_id:
         try:
             profession = Profession.objects.get(id=profession_id)
-            print(f"✅ Profesión encontrada: {profession.name}")
+            print(f"✅ Profesión encontrada por ID: {profession.name}")
         except Profession.DoesNotExist:
             print(f"❌ Profesión no encontrada con ID: {profession_id}")
             return JsonResponse({"ok": False, "error": "Profesión no válida"}, status=400)
@@ -231,7 +288,18 @@ def add_item(request):
         existing_item = Item.objects.get(name__iexact=item_name)  # Case-insensitive
         print(f"✅ Item ya existe en BD: {existing_item.name} (ID: {existing_item.id})")
         
-        # Si ya existe, solo necesitamos activar el tracking
+        # Si ya existe, actualizar profesión si se proporciona una nueva
+        updated_fields = []
+        if profession and existing_item.profession != profession:
+            existing_item.profession = profession
+            updated_fields.append("profession")
+            print(f"🔄 Actualizando profesión a: {profession.name}")
+        
+        if updated_fields:
+            existing_item.save(update_fields=updated_fields)
+            print(f"💾 Campos actualizados: {updated_fields}")
+        
+        # Crear o activar tracking
         tracked, tracked_created = TrackedItem.objects.get_or_create(
             item=existing_item,
             defaults={"active": True}
@@ -258,10 +326,12 @@ def add_item(request):
             "blizzard_id": existing_item.blizzard_id,
             "created_item": False,  # No se creó nuevo item
             "is_decor": is_decor,
+            "profession_assigned": profession is not None,
+            "profession_name": profession.name if profession else None,
             "tracked_created_at": tracked.created_at.strftime("%d/%m %H:%M") if tracked_created else tracked.formatted_created_at(),
             "tracked_last_modified": tracked.last_modified.strftime("%d/%m %H:%M") if tracked_created else tracked.formatted_last_modified(),
             "icon_url": icon_url,
-            "message": "Item ya existente - activado para seguimiento"
+            "message": "Item ya existente - activado para seguimiento" + (f" con profesión {profession.name}" if profession else "")
         })
         
     except Item.DoesNotExist:
@@ -304,7 +374,7 @@ def add_item(request):
     
     print(f"✅ Item {'creado' if created else 'encontrado'}: {item_name} (ID: {item.id})")
     
-    # Si ya existía (caso raro por el case-insensitive), actualizar blizzard_id y profesión
+    # Si ya existía (caso raro por el case-insensitive), actualizar
     updated_fields = []
     if not created:
         if item.blizzard_id != blizzard_id:
@@ -361,10 +431,12 @@ def add_item(request):
         "blizzard_id": item.blizzard_id,
         "created_item": created,
         "is_decor": is_decor,
+        "profession_assigned": profession is not None,
+        "profession_name": profession.name if profession else None,
         "tracked_created_at": tracked.created_at.strftime("%d/%m %H:%M"),
         "tracked_last_modified": tracked.last_modified.strftime("%d/%m %H:%M"),
         "icon_url": icon_url,
-        "message": "Item nuevo creado exitosamente"
+        "message": "Item nuevo creado exitosamente" + (f" con profesión {profession.name}" if profession else "")
     })
 
 @require_POST
