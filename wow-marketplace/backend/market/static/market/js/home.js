@@ -554,15 +554,329 @@ Otro item decorativo final,decor,Jewelcrafting`;
             alert('❌ Error al descargar la plantilla: ' + error.message);
         }
     }
+    
+    // ===================== CONFIGURATION FUNCTIONS =====================
+    function loadConfiguration() {
+        try {
+            console.log('🔧 Cargando configuración...');
+            fetch("/api/config/")
+                .then(response => response.json())
+                .then(data => {
+                    if (data.ok) {
+                        const config = data.config;
+                        
+                        // Cargar reinos principales
+                        renderRealmsList(config.primary_realms);
+                        
+                        // Cargar otros valores
+                        document.getElementById('max-realms-input').value = config.max_realms_to_scan;
+                        document.getElementById('dev-mode-checkbox').checked = config.dev_mode;
+                        document.getElementById('region-select').value = config.region;
+                        document.getElementById('locale-select').value = config.locale;
+                        
+                        console.log('✅ Configuración cargada:', config);
+                    } else {
+                        console.error('❌ Error cargando configuración:', data.error);
+                        loadDefaultConfiguration();
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Error de conexión cargando configuración:', error);
+                    loadDefaultConfiguration();
+                });
+        } catch (error) {
+            console.error('❌ Error cargando configuración:', error);
+            loadDefaultConfiguration();
+        }
+    }
+    
+    function renderRealmsList(realms) {
+        const container = document.getElementById('realms-list');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        if (!realms || realms.length === 0) {
+            container.innerHTML = '<div style="color: #94a3b8; font-style: italic; padding: 10px;">No hay reinos configurados</div>';
+            return;
+        }
+        
+        realms.forEach((realm, index) => {
+            const realmDiv = document.createElement('div');
+            realmDiv.className = 'realm-item';
+            realmDiv.style.cssText = `
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 8px 12px;
+                margin-bottom: 5px;
+                background-color: #2d3748;
+                border-radius: 5px;
+                border-left: 4px solid #4299e1;
+            `;
+            
+            realmDiv.innerHTML = `
+                <div style="display: flex; align-items: center;">
+                    <span style="color: #cbd5e0; font-weight: bold; min-width: 30px;">${index + 1}.</span>
+                    <span style="margin-left: 10px; color: #e2e8f0; font-size: 1em;">${realm}</span>
+                </div>
+                <div>
+                    <button class="move-up-btn" data-index="${index}" ${index === 0 ? 'disabled' : ''} 
+                            style="background: none; border: none; color: #a0aec0; cursor: pointer; font-size: 1.2em; 
+                                   padding: 5px; border-radius: 3px;" 
+                            title="Mover arriba">
+                        ⬆️
+                    </button>
+                    <button class="move-down-btn" data-index="${index}" ${index === realms.length - 1 ? 'disabled' : ''} 
+                            style="background: none; border: none; color: #a0aec0; cursor: pointer; font-size: 1.2em; 
+                                   padding: 5px; border-radius: 3px; margin-left: 5px;" 
+                            title="Mover abajo">
+                        ⬇️
+                    </button>
+                    <button class="remove-realm-btn" data-realm="${realm}" 
+                            style="background: none; border: none; color: #fc8181; cursor: pointer; font-size: 1.2em; 
+                                   padding: 5px; border-radius: 3px; margin-left: 10px;" 
+                            title="Eliminar reino">
+                        🗑️
+                    </button>
+                </div>
+            `;
+            
+            container.appendChild(realmDiv);
+        });
+        
+        // Añadir event listeners a los botones
+        attachRealmListeners();
+    }
+    
+    function attachRealmListeners() {
+        // Botón para añadir nuevo reino
+        document.getElementById('add-realm-btn')?.addEventListener('click', addNewRealm);
+        
+        // Permitir añadir con Enter
+        document.getElementById('new-realm-input')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addNewRealm();
+        });
+        
+        // Botón para cargar reinos por defecto
+        document.getElementById('load-default-realms-btn')?.addEventListener('click', loadDefaultRealms);
+        
+        // Botones de mover y eliminar (delegación de eventos)
+        document.getElementById('realms-list')?.addEventListener('click', (e) => {
+            if (e.target.closest('.remove-realm-btn')) {
+                const realm = e.target.closest('.remove-realm-btn').dataset.realm;
+                removeRealm(realm);
+            } else if (e.target.closest('.move-up-btn')) {
+                const index = parseInt(e.target.closest('.move-up-btn').dataset.index);
+                moveRealm(index, -1);
+            } else if (e.target.closest('.move-down-btn')) {
+                const index = parseInt(e.target.closest('.move-down-btn').dataset.index);
+                moveRealm(index, 1);
+            }
+        });
+    }
+    
+    function addNewRealm() {
+        const input = document.getElementById('new-realm-input');
+        const realmName = input.value.trim();
+        
+        if (!realmName) {
+            alert('❌ Por favor, escribe un nombre de reino');
+            input.focus();
+            return;
+        }
+        
+        // Obtener lista actual
+        const realms = getCurrentRealms();
+        
+        // Verificar si ya existe (case-insensitive)
+        const normalizedRealm = realmName.toLowerCase();
+        if (realms.some(r => r.toLowerCase() === normalizedRealm)) {
+            alert(`❌ El reino "${realmName}" ya está en la lista`);
+            input.value = '';
+            input.focus();
+            return;
+        }
+        
+        // Añadir al final de la lista
+        realms.push(realmName);
+        renderRealmsList(realms);
+        
+        input.value = '';
+        input.focus();
+        
+        console.log(`✅ Reino añadido: ${realmName}`);
+    }
+    
+    function removeRealm(realmName) {
+        if (!confirm(`¿Eliminar el reino "${realmName}" de la lista?`)) return;
+        
+        const realms = getCurrentRealms();
+        const newRealms = realms.filter(r => r !== realmName);
+        renderRealmsList(newRealms);
+        
+        console.log(`✅ Reino eliminado: ${realmName}`);
+    }
+    
+    function moveRealm(index, direction) {
+        const realms = getCurrentRealms();
+        if (index < 0 || index >= realms.length) return;
+        
+        const newIndex = index + direction;
+        if (newIndex < 0 || newIndex >= realms.length) return;
+        
+        // Intercambiar posiciones
+        [realms[index], realms[newIndex]] = [realms[newIndex], realms[index]];
+        renderRealmsList(realms);
+    }
+    
+    function getCurrentRealms() {
+        const realmDivs = document.querySelectorAll('#realms-list .realm-item');
+        const realms = [];
+        
+        realmDivs.forEach(div => {
+            const realmSpan = div.querySelector('span:nth-child(2)');
+            if (realmSpan) {
+                realms.push(realmSpan.textContent.trim());
+            }
+        });
+        
+        return realms;
+    }
+    
+    function loadDefaultRealms() {
+        if (!confirm('¿Cargar los reinos principales por defecto?\nEsto reemplazará tu lista actual.')) return;
+        
+        const defaultRealms = [
+            "Stormrage", "Area 52", "Moon Guard",
+            "Ragnaros", "Dalaran", "Zul'jin", "Proudmoore"
+        ];
+        
+        renderRealmsList(defaultRealms);
+        console.log('✅ Reinos por defecto cargados');
+    }
+    
+    function saveConfiguration() {
+        try {
+            const configData = {
+                max_realms_to_scan: parseInt(document.getElementById('max-realms-input').value) || 0,
+                primary_realms: getCurrentRealms(),
+                dev_mode: document.getElementById('dev-mode-checkbox').checked,
+                region: document.getElementById('region-select').value,
+                locale: document.getElementById('locale-select').value
+            };
+            
+            // Validar
+            if (configData.max_realms_to_scan < 0) {
+                alert('❌ El número de reinos a escanear debe ser 0 o positivo');
+                return;
+            }
+            
+            const saveBtn = document.getElementById('save-config-btn');
+            const originalText = saveBtn.textContent;
+            saveBtn.disabled = true;
+            saveBtn.textContent = "⏳ Guardando...";
+            
+            const statusDiv = document.getElementById('config-status');
+            
+            fetch("/api/update-config/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrf
+                },
+                body: JSON.stringify(configData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.ok) {
+                    statusDiv.textContent = "✅ Configuración guardada exitosamente";
+                    statusDiv.style.backgroundColor = "#10b981";
+                    statusDiv.style.color = "white";
+                    statusDiv.style.display = "block";
+                    
+                    setTimeout(() => {
+                        statusDiv.style.display = "none";
+                    }, 3000);
+                    
+                    console.log('✅ Configuración guardada:', configData);
+                } else {
+                    throw new Error(data.error || "Error desconocido");
+                }
+            })
+            .catch(error => {
+                statusDiv.textContent = `❌ Error: ${error.message}`;
+                statusDiv.style.backgroundColor = "#ef4444";
+                statusDiv.style.color = "white";
+                statusDiv.style.display = "block";
+                
+                console.error('❌ Error guardando configuración:', error);
+            })
+            .finally(() => {
+                saveBtn.disabled = false;
+                saveBtn.textContent = originalText;
+            });
+            
+        } catch (error) {
+            alert('❌ Error guardando configuración: ' + error.message);
+        }
+    }
+    
+    function resetConfiguration() {
+        if (!confirm('¿Restaurar todos los valores por defecto?\nEsto incluirá reinos principales, escaneo e idioma.')) return;
+        
+        loadDefaultRealms();
+        document.getElementById('max-realms-input').value = 0;
+        document.getElementById('dev-mode-checkbox').checked = true;
+        document.getElementById('region-select').value = "us";
+        document.getElementById('locale-select').value = "en_US";
+        
+        const statusDiv = document.getElementById('config-status');
+        statusDiv.textContent = "✅ Valores por defecto restaurados";
+        statusDiv.style.backgroundColor = "#3b82f6";
+        statusDiv.style.color = "white";
+        statusDiv.style.display = "block";
+        
+        setTimeout(() => {
+            statusDiv.style.display = "none";
+        }, 2000);
+        
+        console.log('✅ Configuración restablecida a valores por defecto');
+    }
+    
+    function loadDefaultConfiguration() {
+        renderRealmsList([
+            "Stormrage", "Area 52", "Moon Guard",
+            "Ragnaros", "Dalaran", "Zul'jin", "Proudmoore"
+        ]);
+        document.getElementById('max-realms-input').value = 0;
+        document.getElementById('dev-mode-checkbox').checked = true;
+        document.getElementById('region-select').value = "us";
+        document.getElementById('locale-select').value = "en_US";
+    }
 
-    // ===================== RESTO DEL CÓDIGO (sin cambios) =====================
-    // [Aquí va el resto de tu código existente sin cambios...]
+    // ===================== EVENT LISTENERS FOR CONFIG =====================
+    // Cargar configuración al inicio
+    setTimeout(() => {
+        loadConfiguration();
+    }, 500);
+    
+    // Guardar configuración
+    document.getElementById('save-config-btn')?.addEventListener('click', saveConfiguration);
+    
+    // Resetear configuración
+    document.getElementById('reset-config-btn')?.addEventListener('click', resetConfiguration);
+    
     // ===================== Update Auctions Polling =====================
     const updateBtn = document.getElementById("update-btn");
     let poller = null, wasRunning = false;
     
     function startPolling() {
-        if (!poller) poller = setInterval(updateStatus, 2000);
+        if (!poller) {
+            poller = setInterval(updateStatus, 2000);
+            // Mostrar panel de estado
+            document.getElementById("auction-status").style.display = "block";
+        }
     }
     
     function stopPolling() {
@@ -570,6 +884,10 @@ Otro item decorativo final,decor,Jewelcrafting`;
             clearInterval(poller);
             poller = null;
         }
+        // Ocultar panel de estado después de 5 segundos
+        setTimeout(() => {
+            document.getElementById("auction-status").style.display = "none";
+        }, 5000);
     }
     
     function updateStatus() {
@@ -584,7 +902,8 @@ Otro item decorativo final,decor,Jewelcrafting`;
                   doneEl = document.getElementById("done"),
                   totalEl = document.getElementById("total"),
                   elapsedEl = document.getElementById("elapsed"),
-                  etaEl = document.getElementById("eta");
+                  etaEl = document.getElementById("eta"),
+                  configInfoEl = document.getElementById("config-info");
             
             if (data.running) {
                 wasRunning = true;
@@ -594,25 +913,34 @@ Otro item decorativo final,decor,Jewelcrafting`;
                 totalEl.innerText = data.total || 0;
                 elapsedEl.innerText = data.elapsed || 0;
                 etaEl.innerText = data.eta || 0;
+                configInfoEl.textContent = data.config_info || "";
                 updateBtn.disabled = true;
+                updateBtn.textContent = "⏳ Escaneando...";
             } else {
                 stateEl.innerText = "Idle";
                 updateBtn.disabled = false;
+                updateBtn.textContent = "🔄 Update Auctions";
                 stopPolling();
-                if (wasRunning) location.reload();
+                if (wasRunning) {
+                    wasRunning = false;
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                }
             }
         })
         .catch(error => {
             console.error('Error polling auction status:', error);
             stopPolling();
             updateBtn.disabled = false;
+            updateBtn.textContent = "🔄 Update Auctions";
             document.getElementById("state").innerText = "Error";
         });
     }
     
     updateBtn.addEventListener("click", () => {
         updateBtn.disabled = true;
-        updateBtn.textContent = "🔄 Procesando...";
+        updateBtn.textContent = "⏳ Iniciando...";
         
         fetch("/api/update-auctions/", {
             method: "POST",
@@ -822,6 +1150,9 @@ Otro item decorativo final,decor,Jewelcrafting`;
                 document.querySelectorAll(".snapshot-check").forEach(cb => cb.checked = e.target.checked);
             });
         }
+        
+        // Convertir fechas nuevamente
+        convertAllDates();
     }
     
     // ===================== Add Item (formulario individual) =====================

@@ -2,9 +2,15 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 import json
+import os
+from django.core.files import File
+from django.conf import settings
+import csv
+
 from market.management.commands.update_auctions import get_token, get_item_id, load_cache, save_cache
 from .models import (
-    Item, TrackedItem, ItemPriceSnapshot, AuctionUpdateStatus, Profession
+    Item, TrackedItem, ItemPriceSnapshot, AuctionUpdateStatus, 
+    Profession, UserConfig  # Añadido UserConfig
 )
 from market.management.commands.update_auctions import run_update_auctions
 
@@ -23,14 +29,17 @@ def home(request):
     ).order_by("-profit")[:50]
     professions = Profession.objects.order_by("name")
     
-    # Formatear las fechas para el template (ESTA ES LA PARTE IMPORTANTE)
+    # Cargar configuración actual
+    config = UserConfig.load()
+    
+    # Formatear las fechas para el template
     for snapshot in snapshots:
-        snapshot.formatted_date = snapshot.formatted_created_at()  # DD/MM HH:MM
+        snapshot.formatted_date = snapshot.formatted_created_at()
     
     for item in items:
         if item.tracking:
-            item.tracking.formatted_created_at = item.tracking.formatted_created_at()  # DD/MM HH:MM
-            item.tracking.formatted_last_modified = item.tracking.formatted_last_modified()  # DD/MM HH:MM
+            item.tracking.formatted_created_at = item.tracking.formatted_created_at()
+            item.tracking.formatted_last_modified = item.tracking.formatted_last_modified()
     
     return render(
         request,
@@ -39,8 +48,76 @@ def home(request):
             "items": items,
             "snapshots": snapshots,
             "professions": professions,
+            "config": config,  # Pasar configuración al template
         },
     )
+
+# =====================================================
+# CONFIGURATION
+# =====================================================
+def get_config_view(request):
+    """Obtiene la configuración actual"""
+    config = UserConfig.load()
+    return JsonResponse({
+        "ok": True,
+        "config": {
+            "max_realms_to_scan": config.max_realms_to_scan,
+            "primary_realms": config.get_primary_realms_list(),
+            "dev_mode": config.dev_mode,
+            "region": config.region,
+            "locale": config.locale,
+        }
+    })
+
+@require_POST
+def update_config(request):
+    """Actualiza la configuración del usuario"""
+    data = json.loads(request.body)
+    config = UserConfig.load()
+    
+    try:
+        if "max_realms_to_scan" in data:
+            max_realms = int(data["max_realms_to_scan"])
+            config.max_realms_to_scan = max(0, max_realms)  # 0 o positivo
+        
+        if "primary_realms" in data:
+            # Validar que sea una lista de strings
+            realms = data["primary_realms"]
+            if isinstance(realms, list):
+                # Filtrar elementos vacíos y eliminar duplicados preservando orden
+                unique_realms = []
+                seen = set()
+                for realm in realms:
+                    realm_clean = realm.strip()
+                    if realm_clean and realm_clean.lower() not in seen:
+                        seen.add(realm_clean.lower())
+                        unique_realms.append(realm_clean)
+                config.primary_realms = json.dumps(unique_realms)
+        
+        if "dev_mode" in data:
+            config.dev_mode = bool(data["dev_mode"])
+        
+        if "region" in data:
+            config.region = data["region"].lower()
+        
+        if "locale" in data:
+            config.locale = data["locale"]
+        
+        config.save()
+        
+        return JsonResponse({
+            "ok": True,
+            "message": "Configuración actualizada exitosamente",
+            "config": {
+                "max_realms_to_scan": config.max_realms_to_scan,
+                "primary_realms": config.get_primary_realms_list(),
+                "dev_mode": config.dev_mode,
+                "region": config.region,
+                "locale": config.locale,
+            }
+        })
+    except Exception as e:
+        return JsonResponse({"ok": False, "error": str(e)}, status=400)
 
 # =====================================================
 # TRACKED ITEMS
@@ -92,7 +169,7 @@ def auction_status(request):
     
     elapsed = status.elapsed_seconds()
     eta = 0
-    if status.processed_realms:
+    if status.processed_realms and status.total_realms > 0:
         avg = elapsed / status.processed_realms
         eta = avg * (status.total_realms - status.processed_realms)
     
@@ -103,6 +180,7 @@ def auction_status(request):
         "done": status.processed_realms,
         "elapsed": int(elapsed),
         "eta": int(eta),
+        "config_info": status.config_info or "",
     })
 
 # =====================================================
@@ -133,7 +211,7 @@ def delete_snapshots(request):
             "buy_price": str(s.buy_price),
             "estimated_sell_price": str(s.estimated_sell_price),
             "profit": str(s.profit),
-            "created_at": s.formatted_created_at(),  # ¡AÑADIR FECHA FORMATEADA!
+            "created_at": s.formatted_created_at(),
         }
         snapshots_data.append(snapshot_data)
     
@@ -148,11 +226,6 @@ def delete_all_snapshots(request):
 # =====================================================
 # ITEMS
 # =====================================================
-import os
-import csv
-from django.core.files import File
-from django.conf import settings
-
 # Ruta al CSV y la carpeta de iconos
 CSV_PATH = r'C:\Users\diego\OneDrive\Desktop\Auction house api\Auction-house\Auction-house-Profit\wow-marketplace\backend\market\static\items_with_icons.csv'
 ICONS_PATH = r'C:\Users\diego\OneDrive\Desktop\Auction house api\Auction-house\Auction-house-Profit\wow-marketplace\backend\market\static\icons'
@@ -160,10 +233,16 @@ ICONS_PATH = r'C:\Users\diego\OneDrive\Desktop\Auction house api\Auction-house\A
 # Leer CSV y mapear los iconos
 def load_icons_from_csv():
     icon_mapping = {}
-    with open(CSV_PATH, mode='r', encoding='utf-8') as file:
-        reader = csv.DictReader(file, delimiter=',')
-        for row in reader:
-            icon_mapping[int(row['ID'])] = row['IconName'].strip().lower()
+    try:
+        with open(CSV_PATH, mode='r', encoding='utf-8') as file:
+            reader = csv.DictReader(file, delimiter=',')
+            for row in reader:
+                try:
+                    icon_mapping[int(row['ID'])] = row['IconName'].strip().lower()
+                except (ValueError, KeyError):
+                    continue
+    except FileNotFoundError:
+        console_log("❌ Archivo CSV no encontrado:", CSV_PATH)
     return icon_mapping
 
 # Función para asociar el icono al ítem
@@ -177,9 +256,9 @@ def assign_icon_to_item(item, is_decor=False):
     
     console_log("🔍 Buscando icono en CSV para Blizzard ID:", item.blizzard_id)
     icon_mapping = load_icons_from_csv()
-    icon_name = icon_mapping.get(item.blizzard_id)
     
-    if icon_name:
+    if item.blizzard_id and str(item.blizzard_id) in icon_mapping:
+        icon_name = icon_mapping[str(item.blizzard_id)]
         console_log("✅ Icono encontrado en CSV:", icon_name)
         icon_filename = f"{icon_name}.png"
         icon_path = os.path.join(ICONS_PATH, icon_filename)
@@ -200,17 +279,17 @@ def assign_icon_to_item(item, is_decor=False):
 @require_POST
 def add_item(request):
     """Añade un nuevo Item solo si se encuentra en Blizzard"""
-    print("🟢 ========== INICIO add_item ==========")
+    console_log("🟢 ========== INICIO add_item ==========")
     data = json.loads(request.body)
     item_name = data.get("name", "").strip()
     profession_id = data.get("profession_id")
-    profession_name = data.get("profession_name", "").strip()  # Nuevo: profesión por nombre
+    profession_name = data.get("profession_name", "").strip()
     is_decor = data.get("is_decor", False)
     
-    print(f"📋 Datos recibidos: nombre='{item_name}', profesión_id={profession_id}, profesión_nombre='{profession_name}', is_decor={is_decor}")
+    console_log(f"📋 Datos recibidos: nombre='{item_name}', profesión_id={profession_id}, profesión_nombre='{profession_name}', is_decor={is_decor}")
     
     if not item_name:
-        print("❌ Error: Nombre vacío")
+        console_log("❌ Error: Nombre vacío")
         return JsonResponse({"ok": False, "error": "No name provided"}, status=400)
     
     profession = None
@@ -258,46 +337,46 @@ def add_item(request):
         if english_profession_name:
             try:
                 profession = Profession.objects.get(name__iexact=english_profession_name)
-                print(f"✅ Profesión encontrada por nombre: {profession.name}")
+                console_log(f"✅ Profesión encontrada por nombre: {profession.name}")
             except Profession.DoesNotExist:
-                print(f"⚠️ Profesión no encontrada en BD: '{english_profession_name}'")
+                console_log(f"⚠️ Profesión no encontrada en BD: '{english_profession_name}'")
                 # Podemos crear la profesión automáticamente
                 try:
                     profession = Profession.objects.create(name=english_profession_name)
-                    print(f"✅ Profesión creada automáticamente: {profession.name}")
+                    console_log(f"✅ Profesión creada automáticamente: {profession.name}")
                 except Exception as e:
-                    print(f"❌ Error creando profesión: {e}")
+                    console_log(f"❌ Error creando profesión: {e}")
         else:
-            print(f"⚠️ Nombre de profesión no reconocido: '{profession_name}'")
+            console_log(f"⚠️ Nombre de profesión no reconocido: '{profession_name}'")
     # Si no hay nombre, intentar por ID
     elif profession_id:
         try:
             profession = Profession.objects.get(id=profession_id)
-            print(f"✅ Profesión encontrada por ID: {profession.name}")
+            console_log(f"✅ Profesión encontrada por ID: {profession.name}")
         except Profession.DoesNotExist:
-            print(f"❌ Profesión no encontrada con ID: {profession_id}")
+            console_log(f"❌ Profesión no encontrada con ID: {profession_id}")
             return JsonResponse({"ok": False, "error": "Profesión no válida"}, status=400)
     
     # =======================
     # PRIMERO VERIFICAR SI EL ITEM YA EXISTE
     # =======================
-    print(f"🔍 Buscando si el item ya existe en base de datos: '{item_name}'")
+    console_log(f"🔍 Buscando si el item ya existe en base de datos: '{item_name}'")
     
     try:
         # Intentar encontrar el item en la base de datos
-        existing_item = Item.objects.get(name__iexact=item_name)  # Case-insensitive
-        print(f"✅ Item ya existe en BD: {existing_item.name} (ID: {existing_item.id})")
+        existing_item = Item.objects.get(name__iexact=item_name)
+        console_log(f"✅ Item ya existe en BD: {existing_item.name} (ID: {existing_item.id})")
         
         # Si ya existe, actualizar profesión si se proporciona una nueva
         updated_fields = []
         if profession and existing_item.profession != profession:
             existing_item.profession = profession
             updated_fields.append("profession")
-            print(f"🔄 Actualizando profesión a: {profession.name}")
+            console_log(f"🔄 Actualizando profesión a: {profession.name}")
         
         if updated_fields:
             existing_item.save(update_fields=updated_fields)
-            print(f"💾 Campos actualizados: {updated_fields}")
+            console_log(f"💾 Campos actualizados: {updated_fields}")
         
         # Crear o activar tracking
         tracked, tracked_created = TrackedItem.objects.get_or_create(
@@ -308,9 +387,9 @@ def add_item(request):
         if not tracked.active:
             tracked.active = True
             tracked.save(update_fields=["active"])
-            print("✅ TrackedItem activado")
+            console_log("✅ TrackedItem activado")
         
-        print(f"✅ Item ya existente procesado: {existing_item.name}")
+        console_log(f"✅ Item ya existente procesado: {existing_item.name}")
         
         # Obtener URL del icono
         icon_url = None
@@ -324,7 +403,7 @@ def add_item(request):
             "item_id": existing_item.id,
             "item_name": existing_item.name,
             "blizzard_id": existing_item.blizzard_id,
-            "created_item": False,  # No se creó nuevo item
+            "created_item": False,
             "is_decor": is_decor,
             "profession_assigned": profession is not None,
             "profession_name": profession.name if profession else None,
@@ -335,34 +414,34 @@ def add_item(request):
         })
         
     except Item.DoesNotExist:
-        print(f"⚠️ Item NO encontrado en base de datos, consultando API de Blizzard...")
+        console_log(f"⚠️ Item NO encontrado en base de datos, consultando API de Blizzard...")
         # El item no existe, proceder con la consulta a Blizzard
         pass
     
     except Exception as e:
-        print(f"❌ Error buscando item en BD: {e}")
+        console_log(f"❌ Error buscando item en BD: {e}")
         # Continuar con el flujo normal si hay error
     
     # =======================
     # OBTENER BLIZZARD ITEM ID (solo si no existe)
     # =======================
-    print("🔑 Obteniendo token de Blizzard...")
-    token = get_token()  # obtener token Blizzard
-    print("📂 Cargando cache local...")
-    cache = load_cache()  # cargar cache local
-    print(f"🔍 Buscando Blizzard ID para: '{item_name}'...")
+    console_log("🔑 Obteniendo token de Blizzard...")
+    token = get_token()
+    console_log("📂 Cargando cache local...")
+    cache = load_cache()
+    console_log(f"🔍 Buscando Blizzard ID para: '{item_name}'...")
     blizzard_id = get_item_id(token, item_name, cache)
     
     if not blizzard_id:
-        print(f"❌ No se encontró el item en Blizzard: '{item_name}'")
+        console_log(f"❌ No se encontró el item en Blizzard: '{item_name}'")
         return JsonResponse({"ok": False, "error": "No se encontró el item en Blizzard"}, status=404)
     
-    print(f"✅ Blizzard ID encontrado: {blizzard_id}")
+    console_log(f"✅ Blizzard ID encontrado: {blizzard_id}")
     
     # =======================
     # CREAR ITEM Y TRACKED
     # =======================
-    print("🏗️ Creando Item en base de datos...")
+    console_log("🏗️ Creando Item en base de datos...")
     
     item, created = Item.objects.get_or_create(
         name=item_name,
@@ -372,7 +451,7 @@ def add_item(request):
         }
     )
     
-    print(f"✅ Item {'creado' if created else 'encontrado'}: {item_name} (ID: {item.id})")
+    console_log(f"✅ Item {'creado' if created else 'encontrado'}: {item_name} (ID: {item.id})")
     
     # Si ya existía (caso raro por el case-insensitive), actualizar
     updated_fields = []
@@ -380,19 +459,19 @@ def add_item(request):
         if item.blizzard_id != blizzard_id:
             item.blizzard_id = blizzard_id
             updated_fields.append("blizzard_id")
-            print(f"🔄 Actualizando Blizzard ID a: {blizzard_id}")
+            console_log(f"🔄 Actualizando Blizzard ID a: {blizzard_id}")
         
         if profession and item.profession != profession:
             item.profession = profession
             updated_fields.append("profession")
-            print(f"🔄 Actualizando profesión a: {profession.name}")
+            console_log(f"🔄 Actualizando profesión a: {profession.name}")
         
         if updated_fields:
             item.save(update_fields=updated_fields)
-            print(f"💾 Campos actualizados: {updated_fields}")
+            console_log(f"💾 Campos actualizados: {updated_fields}")
     
     # Crear o activar tracking
-    print("🎯 Creando/Actualizando TrackedItem...")
+    console_log("🎯 Creando/Actualizando TrackedItem...")
     tracked, tracked_created = TrackedItem.objects.get_or_create(
         item=item,
         defaults={"active": True}
@@ -401,19 +480,19 @@ def add_item(request):
     if not tracked.active:
         tracked.active = True
         tracked.save(update_fields=["active"])
-        print("✅ TrackedItem activado")
+        console_log("✅ TrackedItem activado")
     
-    print(f"✅ TrackedItem {'creado' if tracked_created else 'encontrado'}")
+    console_log(f"✅ TrackedItem {'creado' if tracked_created else 'encontrado'}")
     
     # Asignar el icono al ítem (solo para nuevos items o si no tiene icono)
     if created or not item.icon:
-        print("🖼️ Procesando icono...")
+        console_log("🖼️ Procesando icono...")
         assign_icon_to_item(item, is_decor)
     else:
-        print("✅ Item ya tiene icono, omitiendo asignación")
+        console_log("✅ Item ya tiene icono, omitiendo asignación")
     
     save_cache(cache)
-    print(f"💾 Cache guardada")
+    console_log(f"💾 Cache guardada")
     
     # Obtener URL del icono
     icon_url = None
@@ -422,7 +501,7 @@ def add_item(request):
     else:
         icon_url = "https://wow.zamimg.com/images/wow/icons/large/inv_misc_rune_01.jpg"
     
-    print("🟢 ========== FIN add_item ==========")
+    console_log("🟢 ========== FIN add_item ==========")
     
     return JsonResponse({
         "ok": True,
@@ -470,7 +549,6 @@ def delete_all_items(request):
     count = Item.objects.count()
     Item.objects.all().delete()
     return JsonResponse({"ok": True, "deleted_count": count})
-
 
 @require_POST
 def check_items_exist(request):

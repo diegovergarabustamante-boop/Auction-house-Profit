@@ -1,5 +1,53 @@
 from django.db import models
 from django.utils import timezone
+import json
+
+# =====================================================
+# USER CONFIGURATION
+# =====================================================
+class UserConfig(models.Model):
+    """Configuración del usuario para el escáner de arbitraje"""
+    id = models.AutoField(primary_key=True)
+    max_realms_to_scan = models.IntegerField(
+        default=0, 
+        help_text="0 = todos los reinos, N = número máximo de reinos a escanear"
+    )
+    primary_realms = models.TextField(
+        default='["Stormrage", "Area 52", "Moon Guard", "Ragnaros", "Dalaran", "Zul\'jin", "Proudmoore"]',
+        help_text="Lista JSON de reinos principales para arbitraje"
+    )
+    dev_mode = models.BooleanField(
+        default=True, 
+        help_text="Modo desarrollo (limitar reinos a 10 para pruebas rápidas)"
+    )
+    region = models.CharField(max_length=10, default="us")
+    locale = models.CharField(max_length=10, default="en_US")
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Configuración del Usuario"
+        verbose_name_plural = "Configuraciones del Usuario"
+    
+    def save(self, *args, **kwargs):
+        # Asegurarse de que solo haya una configuración
+        self.id = 1
+        super().save(*args, **kwargs)
+    
+    @classmethod
+    def load(cls):
+        config, _ = cls.objects.get_or_create(id=1)
+        return config
+    
+    def get_primary_realms_list(self):
+        """Devuelve la lista de reinos principales como lista Python"""
+        try:
+            return json.loads(self.primary_realms)
+        except (json.JSONDecodeError, TypeError):
+            return ["Stormrage", "Area 52", "Moon Guard", "Ragnaros", "Dalaran", "Zul'jin", "Proudmoore"]
+    
+    def __str__(self):
+        realms_count = len(self.get_primary_realms_list())
+        return f"Config: {realms_count} reinos | Max: {self.max_realms_to_scan} | Dev: {self.dev_mode}"
 
 # =====================================================
 # AUCTION UPDATE STATUS
@@ -11,9 +59,14 @@ class AuctionUpdateStatus(models.Model):
     current_realm = models.CharField(max_length=100, blank=True)
     processed_realms = models.IntegerField(default=0)
     is_running = models.BooleanField(default=False)
+    config_info = models.TextField(blank=True, help_text="Información de configuración usada en el escaneo")
     
     def elapsed_seconds(self):
         return (self.updated_at - self.started_at).total_seconds()
+    
+    def __str__(self):
+        status = "Running" if self.is_running else "Idle"
+        return f"Update Status: {status} | {self.processed_realms}/{self.total_realms} realms"
 
 # =====================================================
 # PROFESSIONS
