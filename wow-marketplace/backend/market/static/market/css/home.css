@@ -143,7 +143,9 @@ td.profit:not(:empty) {
 #delete-selected-items,
 #delete-all-items,
 #delete-selected,
-#delete-all {
+#delete-all,
+#load-txt-btn,
+#download-template-btn {
     width: auto;
     padding: 4px 8px;  /* Reducido más el padding */
     font-size: 10px;  /* Reducido aún más el tamaño de la fuente */
@@ -162,8 +164,22 @@ td.profit:not(:empty) {
 #delete-selected-items:hover,
 #delete-all-items:hover,
 #delete-selected:hover,
-#delete-all:hover {
+#delete-all:hover,
+#load-txt-btn:hover {
     background-color: #45a049;
+}
+
+#download-template-btn {
+    background-color: #6c757d;
+}
+
+#download-template-btn:hover {
+    background-color: #5a6268;
+}
+
+#load-txt-btn:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
 }
 
 /* Si quieres que los botones se alineen en fila */
@@ -214,4 +230,55 @@ div#arbitrage-results-container > div {
 .date-cell {
     font-size: 0.75em;  /* Tamaño ligeramente más pequeño para fechas */
     color: #a5b4fc;  /* Color lavanda suave para las fechas */
+}
+
+/* ====================== ESTILOS PARA CARGA DE ARCHIVOS TXT ====================== */
+#txt-file-input {
+    padding: 5px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    width: 80%;
+    margin-bottom: 10px;
+}
+
+#file-info {
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 8px;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+#processing-status {
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+#progress-text {
+    font-size: 0.9em;
+    margin: 5px 0;
+    color: #a5b4fc;
+}
+
+.format-example {
+    font-size: 0.8em;
+    color: #94a3b8;
+    margin-top: 10px;
+    text-align: left;
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 8px;
+    border-radius: 4px;
+}
+
+.format-example pre {
+    margin: 5px 0;
+    font-family: monospace;
+    white-space: pre-wrap;
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 5px;
+    border-radius: 3px;
 }

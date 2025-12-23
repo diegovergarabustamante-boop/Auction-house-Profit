@@ -45,6 +45,40 @@
                         <button id="add-item-btn">Agregar</button>
                     </td>
                 </tr>
+                <!-- Nueva fila para cargar archivo TXT -->
+                <tr>
+                    <td colspan="4" style="text-align: center; padding-top: 15px;">
+                        <hr style="margin: 10px 0;">
+                        <strong>O cargar múltiples items desde archivo TXT:</strong>
+                        <div style="margin-top: 10px;">
+                            <input type="file" id="txt-file-input" accept=".txt" style="margin-bottom: 10px;">
+                            <br>
+                            <button id="load-txt-btn">📁 Cargar y Procesar TXT</button>
+                            <button id="download-template-btn" style="margin-left: 10px; background-color: #6c757d;">
+                                📋 Descargar plantilla
+                            </button>
+                        </div>
+                        <div id="file-info" style="margin-top: 10px; font-size: 0.9em; color: #ccc; display: none;">
+                            Archivo cargado: <span id="file-name"></span> 
+                            (<span id="item-count">0</span> items detectados)
+                        </div>
+                        <div id="processing-status" style="display: none; margin-top: 10px;">
+                            <div style="color: #4CAF50;">⏳ Procesando items...</div>
+                            <div id="progress-text">0/0 completados</div>
+                            <div id="success-count" style="color: #4CAF50; display: none;">✅ <span>0</span> items añadidos exitosamente</div>
+                            <div id="error-count" style="color: #ff6b6b; display: none;">❌ <span>0</span> errores</div>
+                        </div>
+                        <div class="format-example" style="margin-top: 10px;">
+                            <strong>Formato del archivo TXT:</strong>
+                            <pre style="margin: 5px 0; font-size: 0.85em;">
+Item normal 1
+Item normal 2
+Item decorativo,decor
+Item normal 3</pre>
+                            <em style="font-size: 0.8em;">Un item por línea. Para items decorativos añade ",decor" al final.</em>
+                        </div>
+                    </td>
+                </tr>
             </tbody>
         </table>
     </div>
@@ -118,7 +152,7 @@
                     <th>Item ID</th>
                     <th>Item</th>
                     <th>Icono</th>
-                    <th>Snapshot tomado</th> <!-- MOVIDO AQUÍ -->
+                    <th>Snapshot tomado</th>
                     <th>Buy Realm</th>
                     <th>Buy Price</th>
                     <th>Sell Realm</th>
@@ -141,7 +175,7 @@
                             style="width: 50px; height: 50px;">
                         {% endif %}
                     </td>
-                    <!-- Usar data-attribute para la fecha ISO (UTC) - MOVIDO AQUÍ -->
+                    <!-- Usar data-attribute para la fecha ISO (UTC) -->
                     <td class="date-cell" data-iso-date="{{ s.created_at|date:'c' }}">
                         Cargando...
                     </td>
@@ -177,61 +211,6 @@
     </div>
 
     <!-- JS externo -->
-    <script src="{% static 'market/js/home.js' %}"></script>
-    
-    <!-- Nuevo script para formatear fechas en hora local -->
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Función para formatear fecha ISO a hora local DD/MM HH:MM
-        function formatDateToLocal(isoDateString) {
-            if (!isoDateString) return '-';
-            
-            try {
-                const date = new Date(isoDateString);
-                
-                // Verificar si la fecha es válida
-                if (isNaN(date.getTime())) {
-                    console.error('Fecha inválida:', isoDateString);
-                    return 'Fecha inválida';
-                }
-                
-                // Obtener día, mes, horas y minutos
-                const day = String(date.getDate()).padStart(2, '0');
-                const month = String(date.getMonth() + 1).padStart(2, '0'); // Los meses van de 0-11
-                const hours = String(date.getHours()).padStart(2, '0');
-                const minutes = String(date.getMinutes()).padStart(2, '0');
-                
-                return `${day}/${month} ${hours}:${minutes}`;
-            } catch (error) {
-                console.error('Error formateando fecha:', error, isoDateString);
-                return 'Error';
-            }
-        }
-        
-        // Convertir todas las fechas en la página
-        function convertAllDates() {
-            const dateCells = document.querySelectorAll('.date-cell[data-iso-date]');
-            
-            dateCells.forEach(cell => {
-                const isoDate = cell.getAttribute('data-iso-date');
-                if (isoDate && isoDate !== 'None') {
-                    const localDate = formatDateToLocal(isoDate);
-                    cell.textContent = localDate;
-                } else {
-                    cell.textContent = '-';
-                }
-            });
-        }
-        
-        // Convertir fechas cuando se cargue la página
-        convertAllDates();
-        
-        // También convertir fechas cuando se actualicen los snapshots dinámicamente
-        // (esto funcionará con tu JavaScript existente)
-        
-        // Función helper para usar en otros lugares
-        window.formatDateToLocal = formatDateToLocal;
-    });
-    </script>
+    <script src="{% static 'market/js/home.js' %}?{% now 'U' %}"></script>
 </body>
 </html>

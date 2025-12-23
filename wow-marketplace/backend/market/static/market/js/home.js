@@ -1,6 +1,50 @@
 document.addEventListener("DOMContentLoaded", () => {
     const csrf = document.querySelector("[name=csrfmiddlewaretoken]").value;
     
+    // Función para formatear fecha ISO a hora local DD/MM HH:MM
+    function formatDateToLocal(isoDateString) {
+        if (!isoDateString) return '-';
+        
+        try {
+            const date = new Date(isoDateString);
+            
+            // Verificar si la fecha es válida
+            if (isNaN(date.getTime())) {
+                console.error('Fecha inválida:', isoDateString);
+                return 'Fecha inválida';
+            }
+            
+            // Obtener día, mes, horas y minutos
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0'); // Los meses van de 0-11
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            
+            return `${day}/${month} ${hours}:${minutes}`;
+        } catch (error) {
+            console.error('Error formateando fecha:', error, isoDateString);
+            return 'Error';
+        }
+    }
+    
+    // Convertir todas las fechas en la página
+    function convertAllDates() {
+        const dateCells = document.querySelectorAll('.date-cell[data-iso-date]');
+        
+        dateCells.forEach(cell => {
+            const isoDate = cell.getAttribute('data-iso-date');
+            if (isoDate && isoDate !== 'None') {
+                const localDate = formatDateToLocal(isoDate);
+                cell.textContent = localDate;
+            } else {
+                cell.textContent = '-';
+            }
+        });
+    }
+    
+    // Convertir fechas cuando se cargue la página
+    convertAllDates();
+    
     // ===================== Update Auctions Polling =====================
     const updateBtn = document.getElementById("update-btn");
     let poller = null, wasRunning = false;
@@ -85,86 +129,62 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     
     // ===================== Delete Items =====================
-    document.querySelectorAll(".delete-item-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-            const itemId = btn.dataset.id;
-            if (!confirm("Eliminar completamente este item?")) return;
-            
-            fetch("/api/delete-item/", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": csrf
-                },
-                body: JSON.stringify({ item_id: itemId })
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.ok) document.getElementById(`item-row-${itemId}`).remove();
-                else alert("Error: " + (data.error || "No se pudo eliminar"));
+    function attachDeleteItemListeners() {
+        document.querySelectorAll(".delete-item-btn").forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                const itemId = e.target.dataset.id;
+                if (!confirm("Eliminar completamente este item?")) return;
+                
+                fetch("/api/delete-item/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": csrf
+                    },
+                    body: JSON.stringify({ item_id: itemId })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.ok) {
+                        document.getElementById(`item-row-${itemId}`).remove();
+                    } else {
+                        alert("Error: " + (data.error || "No se pudo eliminar"));
+                    }
+                });
             });
         });
-    });
+    }
+    
+    attachDeleteItemListeners();
     
     // ===================== Delete Selected Items (Items a Escanear) =====================
-document.getElementById("delete-selected")?.addEventListener("click", () => {
-    const ids = [...document.querySelectorAll(".snapshot-check:checked")].map(cb => cb.value);
-    if (!ids.length) return alert("Nada seleccionado");
-
-    const confirmDelete = confirm("¿Estás seguro de eliminar los snapshots seleccionados? Esta acción no se puede deshacer.");
-
-    if (confirmDelete) {
-        fetch("/api/delete-snapshots/", {
+    document.getElementById("delete-selected-items")?.addEventListener("click", () => {
+        const ids = [...document.querySelectorAll(".item-check:checked")].map(cb => cb.value);
+        if (!ids.length) return alert("Nada seleccionado");
+        
+        if (!confirm("¿Eliminar los items seleccionados?")) return;
+        
+        fetch("/api/delete-multiple-items/", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "X-CSRFToken": csrf
             },
-            body: JSON.stringify({ ids })
+            body: JSON.stringify({ item_ids: ids })
         })
-        .then(response => response.json())
+        .then(r => r.json())
         .then(data => {
-            if (data.deleted > 0) {
-                
-
-                // Actualizar la tabla con los resultados más recientes
-                updateArbitrageResults(data.snapshots);
+            if (data.ok) {
+                alert(`✅ ${data.deleted_count} items eliminados`);
+                ids.forEach(id => {
+                    const row = document.getElementById(`item-row-${id}`);
+                    if (row) row.remove();
+                });
             } else {
-                alert("No se eliminaron snapshots");
+                alert("Error: " + (data.error || "No se pudieron eliminar"));
             }
-        })
-        .catch(error => {
-            console.error("❌ Error al eliminar los snapshots:", error);
-            alert("Hubo un error al eliminar los snapshots.");
         });
-    } else {
-        console.log("Eliminación cancelada");
-    }
-});
-
-// Función para actualizar la tabla de arbitraje con los nuevos resultados
-function updateArbitrageResults(snapshots) {
-    const tableBody = document.querySelector("#arbitrage-results-container tbody");
-    tableBody.innerHTML = ''; // Limpiar la tabla existente
-
-    snapshots.forEach(s => {
-        const row = document.createElement("tr");
-
-        row.innerHTML = `
-            <td><input type="checkbox" class="snapshot-check" value="${s.id}"></td>
-            <td>${s.blizzard_id || "-"}</td>
-            <td>${s.item_name}</td>
-            <td>${s.best_buy_realm}</td>
-            <td>${s.buy_price} g</td>
-            <td>${s.best_sell_realm}</td>
-            <td>${s.estimated_sell_price} g</td>
-            <td class="profit">${s.profit} g</td>
-        `;
-
-        tableBody.appendChild(row);
     });
-}
-
     
     document.getElementById("delete-all-items")?.addEventListener("click", () => {
         if (!confirm("Eliminar TODOS los items?")) return;
@@ -176,7 +196,42 @@ function updateArbitrageResults(snapshots) {
     });
     
     // ===================== Delete Snapshots =====================
+    document.getElementById("delete-selected")?.addEventListener("click", () => {
+        const ids = [...document.querySelectorAll(".snapshot-check:checked")].map(cb => cb.value);
+        if (!ids.length) return alert("Nada seleccionado");
 
+        const confirmDelete = confirm("¿Estás seguro de eliminar los snapshots seleccionados? Esta acción no se puede deshacer.");
+
+        if (confirmDelete) {
+            fetch("/api/delete-snapshots/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrf
+                },
+                body: JSON.stringify({ ids })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.deleted > 0) {
+                    // Eliminar filas visualmente
+                    ids.forEach(id => {
+                        const row = document.querySelector(`#snapshot-row-${id}`);
+                        if (row) row.remove();
+                    });
+                    
+                    // Actualizar la tabla con los resultados más recientes
+                    updateArbitrageResults(data.snapshots);
+                } else {
+                    alert("No se eliminaron snapshots");
+                }
+            })
+            .catch(error => {
+                console.error("❌ Error al eliminar los snapshots:", error);
+                alert("Hubo un error al eliminar los snapshots.");
+            });
+        }
+    });
     
     document.getElementById("delete-all")?.addEventListener("click", () => {
         if (!confirm("Eliminar TODOS los snapshots?")) return;
@@ -186,6 +241,52 @@ function updateArbitrageResults(snapshots) {
         })
         .then(() => location.reload());
     });
+    
+    // Función para actualizar la tabla de arbitraje con los nuevos resultados
+    function updateArbitrageResults(snapshots) {
+        const tableBody = document.querySelector("#arbitrage-results-container tbody");
+        
+        if (!snapshots || snapshots.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="10" style="text-align: center;">No hay snapshots disponibles</td></tr>';
+            return;
+        }
+        
+        tableBody.innerHTML = '';
+        
+        snapshots.forEach(s => {
+            const row = document.createElement("tr");
+            
+            // Formatear la fecha localmente
+            const localDate = formatDateToLocal(s.created_at);
+            
+            row.innerHTML = `
+                <td><input type="checkbox" class="snapshot-check" value="${s.id}"></td>
+                <td>${s.blizzard_id || "-"}</td>
+                <td>${s.item_name}</td>
+                <td>
+                    <img src="https://wow.zamimg.com/images/wow/icons/large/inv_misc_rune_01.jpg"
+                        alt="${s.item_name} icon"
+                        style="width: 50px; height: 50px;">
+                </td>
+                <td class="date-cell" data-iso-date="${s.created_at}">${localDate}</td>
+                <td>${s.best_buy_realm}</td>
+                <td>${s.buy_price} g</td>
+                <td>${s.best_sell_realm}</td>
+                <td>${s.estimated_sell_price} g</td>
+                <td class="profit">${s.profit} g</td>
+            `;
+            
+            tableBody.appendChild(row);
+        });
+        
+        // Reasignar el event listener para select-all
+        const selectAllCheckbox = document.getElementById("select-all-snapshots");
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener("change", e => {
+                document.querySelectorAll(".snapshot-check").forEach(cb => cb.checked = e.target.checked);
+            });
+        }
+    }
     
     // ===================== Add Item =====================
     document.getElementById("add-item-btn")?.addEventListener("click", () => {
@@ -237,9 +338,216 @@ function updateArbitrageResults(snapshots) {
             alert("Error al agregar el item");
         });
     });
-
-
     
+    // ===================== Cargar múltiples items desde TXT =====================
+    document.getElementById('load-txt-btn')?.addEventListener('click', processTxtFile);
+    document.getElementById('txt-file-input')?.addEventListener('change', handleFileSelect);
+    document.getElementById('download-template-btn')?.addEventListener('click', downloadTemplate);
+
+    let itemsToProcess = [];
+    let currentProcessingIndex = 0;
+    let successCount = 0;
+    let errorCount = 0;
+
+    function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            const content = e.target.result;
+            itemsToProcess = parseTxtContent(content);
+            
+            // Mostrar información del archivo
+            document.getElementById('file-info').style.display = 'block';
+            document.getElementById('file-name').textContent = file.name;
+            document.getElementById('item-count').textContent = itemsToProcess.length;
+            
+            // Resetear contadores
+            successCount = 0;
+            errorCount = 0;
+            currentProcessingIndex = 0;
+            
+            console.log(`📄 ${itemsToProcess.length} items encontrados en el archivo`);
+        };
+        
+        reader.readAsText(file);
+    }
+
+    function parseTxtContent(content) {
+        const lines = content.split('\n');
+        const items = [];
+        
+        lines.forEach((line, index) => {
+            const trimmedLine = line.trim();
+            if (trimmedLine && !trimmedLine.startsWith('#')) { // Ignorar líneas vacías y comentarios
+                // Verificar si tiene ",decor" al final (case insensitive)
+                const isDecor = trimmedLine.toLowerCase().endsWith(',decor');
+                
+                // Extraer el nombre del item (sin ,decor si existe)
+                let itemName = trimmedLine;
+                if (isDecor) {
+                    itemName = trimmedLine.substring(0, trimmedLine.length - 6).trim();
+                }
+                
+                items.push({
+                    name: itemName,
+                    isDecor: isDecor,
+                    originalLine: trimmedLine,
+                    lineNumber: index + 1
+                });
+            }
+        });
+        
+        return items;
+    }
+
+    function processTxtFile() {
+        if (itemsToProcess.length === 0) {
+            alert('❌ No hay items para procesar. Primero carga un archivo TXT.');
+            return;
+        }
+        
+        // Mostrar estado de procesamiento
+        const processingStatus = document.getElementById('processing-status');
+        processingStatus.style.display = 'block';
+        document.getElementById('success-count').style.display = 'none';
+        document.getElementById('error-count').style.display = 'none';
+        
+        // Resetear contadores
+        successCount = 0;
+        errorCount = 0;
+        currentProcessingIndex = 0;
+        
+        // Deshabilitar botón mientras se procesa
+        const loadBtn = document.getElementById('load-txt-btn');
+        loadBtn.disabled = true;
+        loadBtn.textContent = '⏳ Procesando...';
+        
+        // Procesar el primer item
+        processNextItem();
+    }
+
+    function processNextItem() {
+        if (currentProcessingIndex >= itemsToProcess.length) {
+            // Procesamiento completado
+            finishProcessing();
+            return;
+        }
+        
+        const item = itemsToProcess[currentProcessingIndex];
+        
+        // Actualizar texto de progreso
+        document.getElementById('progress-text').textContent = 
+            `${currentProcessingIndex + 1}/${itemsToProcess.length} completados`;
+        
+        // Preparar datos para enviar
+        const data = {
+            name: item.name,
+            is_decor: item.isDecor
+        };
+        
+        // Enviar solicitud para añadir el item
+        fetch("/api/add-item/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrf
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.ok) {
+                successCount++;
+                console.log(`✅ Item añadido: ${item.name} ${item.isDecor ? '(Decor)' : ''}`);
+            } else {
+                errorCount++;
+                console.error(`❌ Error en línea ${item.lineNumber}: ${item.originalLine} - ${data.error || 'Error desconocido'}`);
+            }
+            
+            // Procesar siguiente item
+            currentProcessingIndex++;
+            
+            // Pequeña pausa para no sobrecargar el servidor
+            setTimeout(processNextItem, 100);
+        })
+        .catch(error => {
+            errorCount++;
+            console.error(`❌ Error en línea ${item.lineNumber}: ${item.originalLine}`, error);
+            
+            currentProcessingIndex++;
+            setTimeout(processNextItem, 100);
+        });
+    }
+
+    function finishProcessing() {
+        // Mostrar resultados
+        const successElement = document.getElementById('success-count');
+        const errorElement = document.getElementById('error-count');
+        
+        successElement.querySelector('span').textContent = successCount;
+        errorElement.querySelector('span').textContent = errorCount;
+        
+        successElement.style.display = successCount > 0 ? 'block' : 'none';
+        errorElement.style.display = errorCount > 0 ? 'block' : 'none';
+        
+        // Actualizar botón
+        const loadBtn = document.getElementById('load-txt-btn');
+        loadBtn.disabled = false;
+        loadBtn.textContent = '📁 Cargar y Procesar TXT';
+        
+        // Limpiar input de archivo
+        document.getElementById('txt-file-input').value = '';
+        
+        // Mostrar resumen
+        let message = `✅ Procesamiento completado:\n`;
+        message += `✓ ${successCount} items añadidos exitosamente\n`;
+        if (errorCount > 0) {
+            message += `✗ ${errorCount} errores (ver consola para detalles)`;
+        }
+        
+        alert(message);
+        
+        // Recargar la página para ver los nuevos items
+        if (successCount > 0) {
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        }
+    }
+
+    function downloadTemplate() {
+        const template = `# Plantilla para cargar múltiples items
+# Un item por línea
+# Para items decorativos, añade ",decor" al final
+# Las líneas que comienzan con # son comentarios
+# Las líneas vacías se ignoran
+
+Este es item 1
+Este es item 2
+Este es item 3,decor
+Este es item 4
+
+# Más ejemplos:
+Item de ejemplo normal
+Otro item decorativo,decor
+Último item de prueba`;
+
+        const blob = new Blob([template], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'plantilla_items.txt';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+    
+    // Select all snapshots checkbox
+    document.getElementById("select-all-snapshots")?.addEventListener("change", e => {
+        document.querySelectorAll(".snapshot-check").forEach(cb => cb.checked = e.target.checked);
+    });
 });
-
-
