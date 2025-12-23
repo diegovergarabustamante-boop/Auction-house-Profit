@@ -1,7 +1,7 @@
 /* ====================== BASE ====================== */
 body {
     font-family: Arial, sans-serif;
-    background: #0f172a url("https://cdnb.artstation.com/p/assets/covers/images/001/621/567/large/tim-moreels-nomarmosetviewericon.jpg?1449647265") 
+    background: #0f172a url("https://cdnb.artstation.com/p/assets/covers/images/001/621/567/large/tim-moreels-nomarmosetviewericon.jpg") 
                 no-repeat center center fixed;
     background-size: cover;
     color: #e5e7eb;
@@ -116,6 +116,27 @@ td img {
     display: block;
 }
 
+/* ====================== PROFIT - COLOR VERDE ====================== */
+.profit {
+    color: #4CAF50 !important;  /* Verde brillante */
+    font-weight: bold !important;
+    text-shadow: 0 0 2px rgba(76, 175, 80, 0.3);  /* Sutil brillo */
+}
+
+/* Profit positivo - aún más destacado */
+td.profit:not(:empty) {
+    animation: profitGlow 2s infinite alternate;
+}
+
+@keyframes profitGlow {
+    from {
+        text-shadow: 0 0 2px rgba(76, 175, 80, 0.3);
+    }
+    to {
+        text-shadow: 0 0 4px rgba(76, 175, 80, 0.6), 0 0 6px rgba(76, 175, 80, 0.4);
+    }
+}
+
 /* ====================== BOTONES ====================== */
 #add-item-btn,
 #save-tracked,
@@ -187,4 +208,10 @@ div#arbitrage-results-container > div {
 
 #update-btn:hover {
     background-color: #45a049;
+}
+
+/* ====================== FECHAS ====================== */
+.date-cell {
+    font-size: 0.75em;  /* Tamaño ligeramente más pequeño para fechas */
+    color: #a5b4fc;  /* Color lavanda suave para las fechas */
 }

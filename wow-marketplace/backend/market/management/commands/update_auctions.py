@@ -25,7 +25,7 @@ PRIMARY_REALMS = [
     "Ragnaros", "Dalaran", "Zul'jin", "Proudmoore",
 ]
 
-MAX_REALMS_TO_SCAN = 30
+MAX_REALMS_TO_SCAN = 10
 DEV_MODE = True  # True = solo 10 reinos, False = todos
 
 BASE_DIR = settings.BASE_DIR

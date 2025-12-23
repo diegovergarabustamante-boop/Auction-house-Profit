@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>WoW Arbitrage Scanner</title>
-    <link rel="stylesheet" href="{% static 'market/css/home.css' %}">
+    <link rel="stylesheet" href="{% static 'market/css/home.css' %}?{% now 'U' %}">
 </head>
 <body>
     <!-- CSRF token para JS -->
@@ -20,7 +20,7 @@
                 <tr>
                     <th>Nombre del item</th>
                     <th>Profesión</th>
-                    <th>Decor Item</th> <!-- Nueva columna -->
+                    <th>Decor Item</th>
                     <th>Acción</th>
                 </tr>
             </thead>
@@ -59,7 +59,8 @@
                     <th><input type="checkbox" id="select-all-items"></th>
                     <th>Item ID (Blizzard)</th>
                     <th>Item</th>
-                    <th>Icono</th> <!-- Nueva columna para el icono -->
+                    <th>Icono</th>
+                    <th>Añadido el</th>
                     <th>Activo</th>
                     <th>Eliminar</th>
                 </tr>
@@ -79,6 +80,14 @@
                         <img src="https://wow.zamimg.com/images/wow/icons/large/inv_misc_rune_01.jpg"
                             alt="{{ item.name }} icon"
                             style="width: 50px; height: 50px;">
+                        {% endif %}
+                    </td>
+                    <!-- Usar data-attribute para la fecha ISO (UTC) -->
+                    <td class="date-cell" data-iso-date="{% if item.tracking %}{{ item.tracking.created_at|date:'c' }}{% endif %}">
+                        {% if item.tracking %}
+                            Cargando...
+                        {% else %}
+                            -
                         {% endif %}
                     </td>
                     <td>{% if item.tracking and item.tracking.active %}✅{% else %}❌{% endif %}</td>
@@ -108,7 +117,8 @@
                     <th><input type="checkbox" id="select-all-snapshots"></th>
                     <th>Item ID</th>
                     <th>Item</th>
-                    <th>Icono</th> <!-- Nueva columna para el icono -->
+                    <th>Icono</th>
+                    <th>Snapshot tomado</th> <!-- MOVIDO AQUÍ -->
                     <th>Buy Realm</th>
                     <th>Buy Price</th>
                     <th>Sell Realm</th>
@@ -130,6 +140,10 @@
                             alt="{{ s.item.name }} icon"
                             style="width: 50px; height: 50px;">
                         {% endif %}
+                    </td>
+                    <!-- Usar data-attribute para la fecha ISO (UTC) - MOVIDO AQUÍ -->
+                    <td class="date-cell" data-iso-date="{{ s.created_at|date:'c' }}">
+                        Cargando...
                     </td>
                     <td>{{ s.best_buy_realm.name }}</td>
                     <td>{{ s.buy_price }} g</td>
@@ -164,8 +178,60 @@
 
     <!-- JS externo -->
     <script src="{% static 'market/js/home.js' %}"></script>
+    
+    <!-- Nuevo script para formatear fechas en hora local -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Función para formatear fecha ISO a hora local DD/MM HH:MM
+        function formatDateToLocal(isoDateString) {
+            if (!isoDateString) return '-';
+            
+            try {
+                const date = new Date(isoDateString);
+                
+                // Verificar si la fecha es válida
+                if (isNaN(date.getTime())) {
+                    console.error('Fecha inválida:', isoDateString);
+                    return 'Fecha inválida';
+                }
+                
+                // Obtener día, mes, horas y minutos
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0'); // Los meses van de 0-11
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                
+                return `${day}/${month} ${hours}:${minutes}`;
+            } catch (error) {
+                console.error('Error formateando fecha:', error, isoDateString);
+                return 'Error';
+            }
+        }
+        
+        // Convertir todas las fechas en la página
+        function convertAllDates() {
+            const dateCells = document.querySelectorAll('.date-cell[data-iso-date]');
+            
+            dateCells.forEach(cell => {
+                const isoDate = cell.getAttribute('data-iso-date');
+                if (isoDate && isoDate !== 'None') {
+                    const localDate = formatDateToLocal(isoDate);
+                    cell.textContent = localDate;
+                } else {
+                    cell.textContent = '-';
+                }
+            });
+        }
+        
+        // Convertir fechas cuando se cargue la página
+        convertAllDates();
+        
+        // También convertir fechas cuando se actualicen los snapshots dinámicamente
+        // (esto funcionará con tu JavaScript existente)
+        
+        // Función helper para usar en otros lugares
+        window.formatDateToLocal = formatDateToLocal;
+    });
+    </script>
 </body>
 </html>
-
-
-

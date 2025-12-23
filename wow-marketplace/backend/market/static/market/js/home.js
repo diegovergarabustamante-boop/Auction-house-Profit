@@ -237,4 +237,9 @@ function updateArbitrageResults(snapshots) {
             alert("Error al agregar el item");
         });
     });
+
+
+    
 });
+
+

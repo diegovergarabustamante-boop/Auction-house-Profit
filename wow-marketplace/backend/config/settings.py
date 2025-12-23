@@ -125,7 +125,7 @@ STATIC_URL = '/static/'
 
 # Para desarrollo
 STATICFILES_DIRS = [
-    BASE_DIR / "static",  # Si tus archivos estáticos están en una carpeta llamada "static" en la raíz del proyecto
+    BASE_DIR / "market" / "static",  # Tus archivos actuales
+    BASE_DIR / "static",  # Para futuros archivos
 ]
-
 
