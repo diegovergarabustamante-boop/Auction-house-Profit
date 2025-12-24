@@ -271,7 +271,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             
             if (itemsToProcess.length > 100) {
-                if (!confirm(`⚠️ Vas a procesar ${itemsToProcess.length} items. Esto puede tomar tiempo.\n¿Continuar?`)) {
+                if (!confirm(`⚠️ You are about to process ${itemsToProcess.length} items. This may take time.\nContinue?`)) {
                     return;
                 }
             }
@@ -558,224 +558,77 @@ Otro item decorativo final,decor,Jewelcrafting`;
     // ===================== CONFIGURATION FUNCTIONS =====================
     function loadConfiguration() {
         try {
-            console.log('🔧 Cargando configuración...');
+            console.log('🔧 Loading configuration...');
             fetch("/api/config/")
                 .then(response => response.json())
                 .then(data => {
                     if (data.ok) {
                         const config = data.config;
                         
-                        // Cargar reinos principales
-                        renderRealmsList(config.primary_realms);
+                        // Cargar reinos a escanear
+                        document.getElementById('realms-textarea').value = config.realms_to_scan.join('\n');
                         
                         // Cargar otros valores
                         document.getElementById('max-realms-input').value = config.max_realms_to_scan;
                         document.getElementById('dev-mode-checkbox').checked = config.dev_mode;
-                        document.getElementById('region-select').value = config.region;
-                        document.getElementById('locale-select').value = config.locale;
                         
-                        console.log('✅ Configuración cargada:', config);
+                        // Aplicar visibilidad inicial
+                        toggleMaxRealmsVisibility();
+                        
+                        console.log('✅ Configuration loaded:', config);
                     } else {
-                        console.error('❌ Error cargando configuración:', data.error);
+                        console.error('❌ Error loading configuration:', data.error);
                         loadDefaultConfiguration();
                     }
                 })
                 .catch(error => {
-                    console.error('❌ Error de conexión cargando configuración:', error);
+                    console.error('❌ Connection error loading configuration:', error);
                     loadDefaultConfiguration();
                 });
         } catch (error) {
-            console.error('❌ Error cargando configuración:', error);
+            console.error('❌ Error loading configuration:', error);
             loadDefaultConfiguration();
         }
     }
     
-    function renderRealmsList(realms) {
-        const container = document.getElementById('realms-list');
-        if (!container) return;
-        
-        container.innerHTML = '';
-        
-        if (!realms || realms.length === 0) {
-            container.innerHTML = '<div style="color: #94a3b8; font-style: italic; padding: 10px;">No hay reinos configurados</div>';
-            return;
-        }
-        
-        realms.forEach((realm, index) => {
-            const realmDiv = document.createElement('div');
-            realmDiv.className = 'realm-item';
-            realmDiv.style.cssText = `
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 8px 12px;
-                margin-bottom: 5px;
-                background-color: #2d3748;
-                border-radius: 5px;
-                border-left: 4px solid #4299e1;
-            `;
-            
-            realmDiv.innerHTML = `
-                <div style="display: flex; align-items: center;">
-                    <span style="color: #cbd5e0; font-weight: bold; min-width: 30px;">${index + 1}.</span>
-                    <span style="margin-left: 10px; color: #e2e8f0; font-size: 1em;">${realm}</span>
-                </div>
-                <div>
-                    <button class="move-up-btn" data-index="${index}" ${index === 0 ? 'disabled' : ''} 
-                            style="background: none; border: none; color: #a0aec0; cursor: pointer; font-size: 1.2em; 
-                                   padding: 5px; border-radius: 3px;" 
-                            title="Mover arriba">
-                        ⬆️
-                    </button>
-                    <button class="move-down-btn" data-index="${index}" ${index === realms.length - 1 ? 'disabled' : ''} 
-                            style="background: none; border: none; color: #a0aec0; cursor: pointer; font-size: 1.2em; 
-                                   padding: 5px; border-radius: 3px; margin-left: 5px;" 
-                            title="Mover abajo">
-                        ⬇️
-                    </button>
-                    <button class="remove-realm-btn" data-realm="${realm}" 
-                            style="background: none; border: none; color: #fc8181; cursor: pointer; font-size: 1.2em; 
-                                   padding: 5px; border-radius: 3px; margin-left: 10px;" 
-                            title="Eliminar reino">
-                        🗑️
-                    </button>
-                </div>
-            `;
-            
-            container.appendChild(realmDiv);
-        });
-        
-        // Añadir event listeners a los botones
-        attachRealmListeners();
-    }
-    
-    function attachRealmListeners() {
-        // Botón para añadir nuevo reino
-        document.getElementById('add-realm-btn')?.addEventListener('click', addNewRealm);
-        
-        // Permitir añadir con Enter
-        document.getElementById('new-realm-input')?.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') addNewRealm();
-        });
-        
-        // Botón para cargar reinos por defecto
-        document.getElementById('load-default-realms-btn')?.addEventListener('click', loadDefaultRealms);
-        
-        // Botones de mover y eliminar (delegación de eventos)
-        document.getElementById('realms-list')?.addEventListener('click', (e) => {
-            if (e.target.closest('.remove-realm-btn')) {
-                const realm = e.target.closest('.remove-realm-btn').dataset.realm;
-                removeRealm(realm);
-            } else if (e.target.closest('.move-up-btn')) {
-                const index = parseInt(e.target.closest('.move-up-btn').dataset.index);
-                moveRealm(index, -1);
-            } else if (e.target.closest('.move-down-btn')) {
-                const index = parseInt(e.target.closest('.move-down-btn').dataset.index);
-                moveRealm(index, 1);
-            }
-        });
-    }
-    
-    function addNewRealm() {
-        const input = document.getElementById('new-realm-input');
-        const realmName = input.value.trim();
-        
-        if (!realmName) {
-            alert('❌ Por favor, escribe un nombre de reino');
-            input.focus();
-            return;
-        }
-        
-        // Obtener lista actual
-        const realms = getCurrentRealms();
-        
-        // Verificar si ya existe (case-insensitive)
-        const normalizedRealm = realmName.toLowerCase();
-        if (realms.some(r => r.toLowerCase() === normalizedRealm)) {
-            alert(`❌ El reino "${realmName}" ya está en la lista`);
-            input.value = '';
-            input.focus();
-            return;
-        }
-        
-        // Añadir al final de la lista
-        realms.push(realmName);
-        renderRealmsList(realms);
-        
-        input.value = '';
-        input.focus();
-        
-        console.log(`✅ Reino añadido: ${realmName}`);
-    }
-    
-    function removeRealm(realmName) {
-        if (!confirm(`¿Eliminar el reino "${realmName}" de la lista?`)) return;
-        
-        const realms = getCurrentRealms();
-        const newRealms = realms.filter(r => r !== realmName);
-        renderRealmsList(newRealms);
-        
-        console.log(`✅ Reino eliminado: ${realmName}`);
-    }
-    
-    function moveRealm(index, direction) {
-        const realms = getCurrentRealms();
-        if (index < 0 || index >= realms.length) return;
-        
-        const newIndex = index + direction;
-        if (newIndex < 0 || newIndex >= realms.length) return;
-        
-        // Intercambiar posiciones
-        [realms[index], realms[newIndex]] = [realms[newIndex], realms[index]];
-        renderRealmsList(realms);
-    }
-    
-    function getCurrentRealms() {
-        const realmDivs = document.querySelectorAll('#realms-list .realm-item');
-        const realms = [];
-        
-        realmDivs.forEach(div => {
-            const realmSpan = div.querySelector('span:nth-child(2)');
-            if (realmSpan) {
-                realms.push(realmSpan.textContent.trim());
-            }
-        });
-        
-        return realms;
-    }
-    
     function loadDefaultRealms() {
-        if (!confirm('¿Cargar los reinos principales por defecto?\nEsto reemplazará tu lista actual.')) return;
+        if (!confirm('Load default realms?\nThis will replace your current list.')) return;
         
         const defaultRealms = [
             "Stormrage", "Area 52", "Moon Guard",
             "Ragnaros", "Dalaran", "Zul'jin", "Proudmoore"
         ];
         
-        renderRealmsList(defaultRealms);
-        console.log('✅ Reinos por defecto cargados');
+        document.getElementById('realms-textarea').value = defaultRealms.join('\n');
+        console.log('✅ Default realms loaded');
     }
     
     function saveConfiguration() {
         try {
+            const realmsText = document.getElementById('realms-textarea').value;
+            const realms = realmsText.split('\n').map(r => r.trim()).filter(r => r);
+            
             const configData = {
                 max_realms_to_scan: parseInt(document.getElementById('max-realms-input').value) || 0,
-                primary_realms: getCurrentRealms(),
-                dev_mode: document.getElementById('dev-mode-checkbox').checked,
-                region: document.getElementById('region-select').value,
-                locale: document.getElementById('locale-select').value
+                realms_to_scan: realms,
+                dev_mode: document.getElementById('dev-mode-checkbox').checked
             };
             
             // Validar
             if (configData.max_realms_to_scan < 0) {
-                alert('❌ El número de reinos a escanear debe ser 0 o positivo');
+                alert('❌ Max realms to scan must be 0 or positive');
+                return;
+            }
+            
+            if (configData.realms_to_scan.length === 0) {
+                alert('❌ Please add at least one realm to scan');
                 return;
             }
             
             const saveBtn = document.getElementById('save-config-btn');
             const originalText = saveBtn.textContent;
             saveBtn.disabled = true;
-            saveBtn.textContent = "⏳ Guardando...";
+            saveBtn.textContent = "⏳ Saving...";
             
             const statusDiv = document.getElementById('config-status');
             
@@ -790,7 +643,7 @@ Otro item decorativo final,decor,Jewelcrafting`;
             .then(response => response.json())
             .then(data => {
                 if (data.ok) {
-                    statusDiv.textContent = "✅ Configuración guardada exitosamente";
+                    statusDiv.textContent = "✅ Configuration saved successfully";
                     statusDiv.style.backgroundColor = "#10b981";
                     statusDiv.style.color = "white";
                     statusDiv.style.display = "block";
@@ -823,13 +676,9 @@ Otro item decorativo final,decor,Jewelcrafting`;
     }
     
     function resetConfiguration() {
-        if (!confirm('¿Restaurar todos los valores por defecto?\nEsto incluirá reinos principales, escaneo e idioma.')) return;
+        if (!confirm('Restore all default values?\nThis will include realms, scanning and other settings.')) return;
         
-        loadDefaultRealms();
-        document.getElementById('max-realms-input').value = 0;
-        document.getElementById('dev-mode-checkbox').checked = true;
-        document.getElementById('region-select').value = "us";
-        document.getElementById('locale-select').value = "en_US";
+        loadDefaultConfiguration();
         
         const statusDiv = document.getElementById('config-status');
         statusDiv.textContent = "✅ Valores por defecto restaurados";
@@ -845,14 +694,38 @@ Otro item decorativo final,decor,Jewelcrafting`;
     }
     
     function loadDefaultConfiguration() {
-        renderRealmsList([
-            "Stormrage", "Area 52", "Moon Guard",
-            "Ragnaros", "Dalaran", "Zul'jin", "Proudmoore"
-        ]);
+        document.getElementById('realms-textarea').value = '';
         document.getElementById('max-realms-input').value = 0;
         document.getElementById('dev-mode-checkbox').checked = true;
-        document.getElementById('region-select').value = "us";
-        document.getElementById('locale-select').value = "en_US";
+        toggleMaxRealmsVisibility();
+    }
+    
+    function toggleMaxRealmsVisibility() {
+        const checkbox = document.getElementById('dev-mode-checkbox');
+        const maxRealmsRow = document.querySelector('#max-realms-input').closest('tr');
+        if (checkbox.checked) {
+            maxRealmsRow.style.display = 'none';
+        } else {
+            maxRealmsRow.style.display = '';
+        }
+    }
+    
+    function resetConfiguration() {
+        if (!confirm('Restore all default values?\nThis will include realms, scanning and other settings.')) return;
+        
+        loadDefaultConfiguration();
+        
+        const statusDiv = document.getElementById('config-status');
+        statusDiv.textContent = "✅ Valores por defecto restaurados";
+        statusDiv.style.backgroundColor = "#3b82f6";
+        statusDiv.style.color = "white";
+        statusDiv.style.display = "block";
+        
+        setTimeout(() => {
+            statusDiv.style.display = "none";
+        }, 2000);
+        
+        console.log('✅ Configuración restablecida a valores por defecto');
     }
 
     // ===================== EVENT LISTENERS FOR CONFIG =====================
@@ -866,6 +739,12 @@ Otro item decorativo final,decor,Jewelcrafting`;
     
     // Resetear configuración
     document.getElementById('reset-config-btn')?.addEventListener('click', resetConfiguration);
+    
+    // Cargar reinos por defecto
+    document.getElementById('load-default-realms-btn')?.addEventListener('click', loadDefaultRealms);
+    
+    // Toggle max realms visibility based on dev mode
+    document.getElementById('dev-mode-checkbox')?.addEventListener('change', toggleMaxRealmsVisibility);
     
     // ===================== Update Auctions Polling =====================
     const updateBtn = document.getElementById("update-btn");
@@ -961,17 +840,6 @@ Otro item decorativo final,decor,Jewelcrafting`;
         });
     });
     
-    // ===================== Collapsable Tables =====================
-    const collapsibleTitles = document.querySelectorAll('.collapsible');
-    
-    collapsibleTitles.forEach(title => {
-        title.addEventListener("click", () => {
-            const container = title.nextElementSibling;
-            container.style.display = container.style.display === "none" ? "block" : "none";
-            title.classList.toggle("active");
-        });
-    });
-
     // ===================== Track Items =====================
     document.getElementById("select-all-items")?.addEventListener("change", e => {
         document.querySelectorAll(".item-check").forEach(cb => cb.checked = e.target.checked);
@@ -1026,7 +894,7 @@ Otro item decorativo final,decor,Jewelcrafting`;
         const ids = [...document.querySelectorAll(".item-check:checked")].map(cb => cb.value);
         if (!ids.length) return alert("Nada seleccionado");
         
-        if (!confirm("¿Eliminar los items seleccionados?")) return;
+        if (!confirm("Delete selected items?")) return;
         
         fetch("/api/delete-multiple-items/", {
             method: "POST",
@@ -1064,7 +932,7 @@ Otro item decorativo final,decor,Jewelcrafting`;
         const ids = [...document.querySelectorAll(".snapshot-check:checked")].map(cb => cb.value);
         if (!ids.length) return alert("Nada seleccionado");
 
-        const confirmDelete = confirm("¿Estás seguro de eliminar los snapshots seleccionados? Esta acción no se puede deshacer.");
+        const confirmDelete = confirm("Are you sure to delete selected snapshots? This action cannot be undone.");
 
         if (confirmDelete) {
             fetch("/api/delete-snapshots/", {
@@ -1225,5 +1093,360 @@ Otro item decorativo final,decor,Jewelcrafting`;
     // Select all snapshots checkbox
     document.getElementById("select-all-snapshots")?.addEventListener("change", e => {
         document.querySelectorAll(".snapshot-check").forEach(cb => cb.checked = e.target.checked);
+    });
+    
+    // ===================== BACKGROUND MUSIC =====================
+    // Lista de pistas de música (actualiza con tus archivos)
+    const musicTracks = [
+        '/static/market/music/mus_80_goblingreed_a.mp3',
+        '/static/market/music/mus_80_goblingreed_c.mp3',
+        '/static/market/music/mus_80_motherlode_d.mp3',
+        '/static/market/music/mus_80_motherlode_e.mp3',
+        '/static/market/music/mus_80_motherlode_h.mp3'
+    ];
+    
+    // Nombres amigables para los tracks
+    const trackNames = {
+        '/static/market/music/mus_80_goblingreed_a.mp3': 'Goblin Greed A',
+        '/static/market/music/mus_80_goblingreed_c.mp3': 'Goblin Greed C',
+        '/static/market/music/mus_80_motherlode_d.mp3': 'Motherlode D',
+        '/static/market/music/mus_80_motherlode_e.mp3': 'Motherlode E',
+        '/static/market/music/mus_80_motherlode_h.mp3': 'Motherlode H'
+    };
+    
+    let currentAudio = null;
+    let isMusicPlaying = false;
+    let currentTrackIndex = -1;
+    let currentVolume = 10; // Volumen por defecto (10%)
+    let animationInterval = null;
+    
+    // Función para reproducir música aleatoria
+    function playRandomMusic() {
+        console.log('🎵 playRandomMusic() llamada');
+        if (musicTracks.length === 0) {
+            console.log('⚠️ No hay pistas de música disponibles');
+            return;
+        }
+        
+        // Detener música actual si existe
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+        }
+        
+        // Seleccionar pista aleatoria (diferente a la actual si es posible)
+        let randomIndex;
+        do {
+            randomIndex = Math.floor(Math.random() * musicTracks.length);
+        } while (musicTracks.length > 1 && randomIndex === currentTrackIndex);
+        
+        currentTrackIndex = randomIndex;
+        const selectedTrack = musicTracks[randomIndex];
+        
+        console.log('🎵 Pista seleccionada:', selectedTrack);
+        
+        currentAudio = new Audio(selectedTrack);
+        currentAudio.volume = currentVolume / 100; // Usar volumen guardado
+        currentAudio.loop = false; // No loop individual, cambia a otra
+        
+        currentAudio.addEventListener('ended', () => {
+            // Cuando termine, reproducir otra aleatoria
+            if (isMusicPlaying) {
+                setTimeout(playRandomMusic, 1000); // Pequeño delay entre pistas
+            }
+        });
+        
+        currentAudio.addEventListener('error', () => {
+            console.log('Error cargando música:', selectedTrack);
+            // Intentar otra pista
+            if (isMusicPlaying) {
+                setTimeout(playRandomMusic, 1000);
+            }
+        });
+        
+        currentAudio.play().catch(error => {
+            console.log('❌ Error reproduciendo música (posible bloqueo de autoplay):', error.message);
+            console.log('❌ Detalles del error:', error);
+            // Mostrar mensaje al usuario sobre autoplay
+            showAutoplayMessage();
+            // Intentar otra pista
+            if (isMusicPlaying) {
+                console.log('🔄 Intentando otra pista de música...');
+                setTimeout(playRandomMusic, 1000);
+            }
+        });
+        
+        isMusicPlaying = true;
+        updateMusicButton();
+        updateCurrentTrackDisplay(selectedTrack);
+        startVisualizerAnimation();
+        saveMusicPreferences();
+        console.log('✅ Música iniciada exitosamente:', selectedTrack);
+    }
+    
+    // Función para detener música
+    function stopMusic() {
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+        }
+        isMusicPlaying = false;
+        updateMusicButton();
+        stopVisualizerAnimation();
+        saveMusicPreferences();
+        console.log('🎵 Música detenida');
+    }
+    
+    // Función para toggle música
+    function toggleMusic() {
+        if (isMusicPlaying) {
+            stopMusic();
+        } else {
+            playRandomMusic();
+        }
+    }
+    
+    // Función para actualizar el texto del botón
+    function updateMusicButton() {
+        const btn = document.getElementById('music-toggle-btn');
+        if (btn) {
+            btn.textContent = isMusicPlaying ? '🎵 Pause Music' : '🎵 Play Music';
+            btn.style.backgroundColor = isMusicPlaying ? '#f44336' : '#4CAF50';
+        }
+    }
+    
+    // Función para cargar preferencias del usuario
+    function loadMusicPreferences() {
+        try {
+            const saved = localStorage.getItem('wowMusicPreferences');
+            if (saved) {
+                const prefs = JSON.parse(saved);
+                currentVolume = prefs.volume || 10;
+                isMusicPlaying = prefs.wasPlaying || false;
+                console.log('🎵 Preferencias cargadas:', prefs);
+            }
+        } catch (error) {
+            console.log('Error cargando preferencias:', error);
+        }
+    }
+    
+    // Función para guardar preferencias del usuario
+    function saveMusicPreferences() {
+        try {
+            const prefs = {
+                volume: currentVolume,
+                wasPlaying: isMusicPlaying
+            };
+            localStorage.setItem('wowMusicPreferences', JSON.stringify(prefs));
+            console.log('💾 Preferencias guardadas:', prefs);
+        } catch (error) {
+            console.log('Error guardando preferencias:', error);
+        }
+    }
+    
+    // Función para actualizar el volumen
+    function updateVolume(newVolume) {
+        currentVolume = newVolume;
+        if (currentAudio) {
+            currentAudio.volume = currentVolume / 100;
+        }
+        // Actualizar UI
+        document.getElementById('volume-slider').value = currentVolume;
+        document.getElementById('volume-value').textContent = currentVolume + '%';
+        saveMusicPreferences();
+    }
+    
+    // Función para iniciar animación de las barras
+    function startVisualizerAnimation() {
+        const bars = document.querySelectorAll('#track-bars .bar');
+        if (animationInterval) clearInterval(animationInterval);
+        
+        animationInterval = setInterval(() => {
+            bars.forEach((bar, index) => {
+                const height = Math.random() * 20 + 5; // Altura aleatoria entre 5-25px
+                bar.style.height = height + 'px';
+            });
+        }, 200); // Actualizar cada 200ms
+        
+        document.getElementById('music-visualizer').style.display = 'block';
+    }
+    
+    // Función para detener animación de las barras
+    function stopVisualizerAnimation() {
+        if (animationInterval) {
+            clearInterval(animationInterval);
+            animationInterval = null;
+        }
+        
+        // Resetear barras a altura mínima
+        const bars = document.querySelectorAll('#track-bars .bar');
+        bars.forEach(bar => {
+            bar.style.height = '5px';
+        });
+        
+        document.getElementById('music-visualizer').style.display = 'none';
+    }
+    
+    // Función para actualizar el display del track actual
+    function updateCurrentTrackDisplay(trackPath) {
+        const trackNameElement = document.getElementById('current-track-name');
+        if (trackNameElement && trackNames[trackPath]) {
+            trackNameElement.textContent = trackNames[trackPath];
+        }
+    }
+    
+    // Función para mostrar mensaje sobre autoplay
+    function showAutoplayMessage() {
+        // Solo mostrar una vez
+        if (document.getElementById('autoplay-message')) return;
+        
+        const message = document.createElement('div');
+        message.id = 'autoplay-message';
+        message.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #f59e0b;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 1000;
+            max-width: 300px;
+            font-size: 14px;
+            cursor: pointer;
+        `;
+        message.innerHTML = `
+            <strong>🎵 Música bloqueada</strong><br>
+            Los navegadores bloquean la reproducción automática. 
+            Haz clic en "Play Music" para iniciar.
+            <span style="float: right; font-weight: bold;">×</span>
+        `;
+        
+        // Cerrar al hacer clic
+        message.addEventListener('click', () => {
+            message.remove();
+        });
+        
+        // Auto-cerrar después de 10 segundos
+        setTimeout(() => {
+            if (message.parentNode) {
+                message.remove();
+            }
+        }, 10000);
+        
+        document.body.appendChild(message);
+    }
+    
+    // Cargar preferencias de música
+    loadMusicPreferences();
+    
+    // Configurar controles de volumen
+    const volumeSlider = document.getElementById('volume-slider');
+    if (volumeSlider) {
+        volumeSlider.value = currentVolume;
+        volumeSlider.addEventListener('input', (e) => {
+            updateVolume(parseInt(e.target.value));
+        });
+    }
+    
+    // Actualizar display inicial del volumen
+    updateVolume(currentVolume);
+    
+    // Si el usuario tenía la música reproduciendo antes, intentar reanudar
+    // (aunque probablemente falle por restricciones de autoplay)
+    if (isMusicPlaying) {
+        console.log('🎵 Intentando reanudar música desde preferencias guardadas...');
+        setTimeout(() => {
+            playRandomMusic();
+        }, 500);
+    }
+    
+    // Event listener para el botón de música
+    document.getElementById('music-toggle-btn')?.addEventListener('click', toggleMusic);
+    
+    // Nota: El autoplay está bloqueado por los navegadores modernos
+    // La música solo se inicia con interacción del usuario (clic en el botón)
+    
+    // ===================== SOUNDS =====================
+    // Configuración de sonidos personalizados (efectos de sonido)
+    const sounds = {
+        cash: '/static/market/sounds/vo_goblinmale_threaten_01.ogg',  // Sonido de goblin para probar OGG
+        // Añade más sonidos aquí:
+        // click: '/static/market/sounds/click.wav',
+        // success: '/static/market/sounds/success.mp3',
+    };
+    
+    // Función para reproducir sonidos personalizados
+    function playSound(soundName) {
+        try {
+            if (sounds[soundName] && sounds[soundName] !== '/static/market/sounds/cash.mp3') {
+                // Usar archivo personalizado
+                const audio = new Audio(sounds[soundName]);
+                audio.volume = 0.3;
+                audio.play().catch(() => {
+                    // Fallback al sonido generado
+                    playGeneratedSound();
+                });
+            } else {
+                // Generar sonido de Sheikah Slate
+                playGeneratedSound();
+            }
+        } catch (error) {
+            console.log('Audio not supported, using generated sound');
+            playGeneratedSound();
+        }
+    }
+    
+    // Función para generar sonido de Sheikah Slate (Zelda)
+    function playGeneratedSound() {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Sonido inspirado en la Sheikah Slate de Zelda
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            const filter = audioContext.createBiquadFilter();
+            
+            // Filtro para sonido más puro
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(3000, audioContext.currentTime);
+            
+            // Tono sinusoidal ascendente-descendente (como el "ding" de Zelda)
+            oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+            oscillator.frequency.linearRampToValueAtTime(700, audioContext.currentTime + 0.08);
+            oscillator.frequency.linearRampToValueAtTime(500, audioContext.currentTime + 0.15);
+            oscillator.type = 'sine';
+            
+            // Envelope suave y bajo volumen
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.08, audioContext.currentTime + 0.03); // Volumen bajo
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+            
+            // Conectar
+            oscillator.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.2);
+            
+        } catch (error) {
+            console.log('Generated sound failed:', error);
+        }
+    }
+    
+    // ===================== Collapsable Tables =====================
+    const collapsibleTitles = document.querySelectorAll('.collapsible');
+    
+    collapsibleTitles.forEach(title => {
+        title.addEventListener("click", () => {
+            const container = title.nextElementSibling;
+            container.style.display = container.style.display === "none" ? "block" : "none";
+            title.classList.toggle("active");
+            
+            // Reproducir sonido de Sheikah Slate
+            playSound('cash');
+        });
     });
 });

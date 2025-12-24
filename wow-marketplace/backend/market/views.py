@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from django.db.models import Max
 import json
 import os
 from django.core.files import File
@@ -24,9 +25,15 @@ def console_log(*messages):
 # =====================================================
 def home(request):
     items = Item.objects.select_related("tracking", "profession").order_by("name")
-    snapshots = ItemPriceSnapshot.objects.select_related(
+    
+    # Obtener solo el snapshot más reciente por item
+    max_created_subquery = ItemPriceSnapshot.objects.values('item').annotate(max_created=Max('created_at')).values('max_created')
+    snapshots = ItemPriceSnapshot.objects.filter(
+        created_at__in=max_created_subquery
+    ).select_related(
         "item", "best_buy_realm", "best_sell_realm"
     ).order_by("-profit")[:50]
+    
     professions = Profession.objects.order_by("name")
     
     # Cargar configuración actual
@@ -56,16 +63,14 @@ def home(request):
 # CONFIGURATION
 # =====================================================
 def get_config_view(request):
-    """Obtiene la configuración actual"""
+    """Gets the current configuration"""
     config = UserConfig.load()
     return JsonResponse({
         "ok": True,
         "config": {
             "max_realms_to_scan": config.max_realms_to_scan,
-            "primary_realms": config.get_primary_realms_list(),
+            "realms_to_scan": config.get_realms_to_scan_list(),
             "dev_mode": config.dev_mode,
-            "region": config.region,
-            "locale": config.locale,
         }
     })
 
@@ -78,13 +83,13 @@ def update_config(request):
     try:
         if "max_realms_to_scan" in data:
             max_realms = int(data["max_realms_to_scan"])
-            config.max_realms_to_scan = max(0, max_realms)  # 0 o positivo
+            config.max_realms_to_scan = max(0, max_realms)  # 0 or positive
         
-        if "primary_realms" in data:
-            # Validar que sea una lista de strings
-            realms = data["primary_realms"]
+        if "realms_to_scan" in data:
+            # Validate that it's a list of strings
+            realms = data["realms_to_scan"]
             if isinstance(realms, list):
-                # Filtrar elementos vacíos y eliminar duplicados preservando orden
+                # Filter empty elements and remove duplicates preserving order
                 unique_realms = []
                 seen = set()
                 for realm in realms:
@@ -92,28 +97,20 @@ def update_config(request):
                     if realm_clean and realm_clean.lower() not in seen:
                         seen.add(realm_clean.lower())
                         unique_realms.append(realm_clean)
-                config.primary_realms = json.dumps(unique_realms)
+                config.realms_to_scan = json.dumps(unique_realms)
         
         if "dev_mode" in data:
             config.dev_mode = bool(data["dev_mode"])
-        
-        if "region" in data:
-            config.region = data["region"].lower()
-        
-        if "locale" in data:
-            config.locale = data["locale"]
         
         config.save()
         
         return JsonResponse({
             "ok": True,
-            "message": "Configuración actualizada exitosamente",
+            "message": "Configuration updated successfully",
             "config": {
                 "max_realms_to_scan": config.max_realms_to_scan,
-                "primary_realms": config.get_primary_realms_list(),
+                "realms_to_scan": config.get_realms_to_scan_list(),
                 "dev_mode": config.dev_mode,
-                "region": config.region,
-                "locale": config.locale,
             }
         })
     except Exception as e:
@@ -194,8 +191,11 @@ def delete_snapshots(request):
     # Eliminar los snapshots seleccionados
     deleted_count, _ = ItemPriceSnapshot.objects.filter(id__in=ids).delete()
     
-    # Recuperar los snapshots restantes
-    snapshots = ItemPriceSnapshot.objects.select_related(
+    # Recuperar los snapshots restantes (solo los más recientes por item)
+    max_created_subquery = ItemPriceSnapshot.objects.values('item').annotate(max_created=Max('created_at')).values('max_created')
+    snapshots = ItemPriceSnapshot.objects.filter(
+        created_at__in=max_created_subquery
+    ).select_related(
         "item", "best_buy_realm", "best_sell_realm"
     ).order_by("-profit")[:50]
     

@@ -6,27 +6,26 @@ import json
 # USER CONFIGURATION
 # =====================================================
 class UserConfig(models.Model):
-    """Configuración del usuario para el escáner de arbitraje"""
+    """User configuration for the arbitrage scanner"""
     id = models.AutoField(primary_key=True)
     max_realms_to_scan = models.IntegerField(
         default=0, 
-        help_text="0 = todos los reinos, N = número máximo de reinos a escanear"
+        help_text="0 = all realms, N = maximum number of realms to scan"
     )
-    primary_realms = models.TextField(
+    realms_to_scan = models.TextField(
         default='["Stormrage", "Area 52", "Moon Guard", "Ragnaros", "Dalaran", "Zul\'jin", "Proudmoore"]',
-        help_text="Lista JSON de reinos principales para arbitraje"
+        help_text="JSON list of realms to scan for arbitrage"
     )
     dev_mode = models.BooleanField(
         default=True, 
-        help_text="Modo desarrollo (limitar reinos a 10 para pruebas rápidas)"
+        help_text="Development mode (limit realms to 10 for quick tests)"
     )
     region = models.CharField(max_length=10, default="us")
-    locale = models.CharField(max_length=10, default="en_US")
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        verbose_name = "Configuración del Usuario"
-        verbose_name_plural = "Configuraciones del Usuario"
+        verbose_name = "User Configuration"
+        verbose_name_plural = "User Configurations"
     
     def save(self, *args, **kwargs):
         # Asegurarse de que solo haya una configuración
@@ -38,16 +37,16 @@ class UserConfig(models.Model):
         config, _ = cls.objects.get_or_create(id=1)
         return config
     
-    def get_primary_realms_list(self):
-        """Devuelve la lista de reinos principales como lista Python"""
+    def get_realms_to_scan_list(self):
+        """Returns the list of realms to scan as a Python list"""
         try:
-            return json.loads(self.primary_realms)
+            return json.loads(self.realms_to_scan)
         except (json.JSONDecodeError, TypeError):
             return ["Stormrage", "Area 52", "Moon Guard", "Ragnaros", "Dalaran", "Zul'jin", "Proudmoore"]
     
     def __str__(self):
-        realms_count = len(self.get_primary_realms_list())
-        return f"Config: {realms_count} reinos | Max: {self.max_realms_to_scan} | Dev: {self.dev_mode}"
+        realms_count = len(self.get_realms_to_scan_list())
+        return f"Config: {self.max_realms_to_scan if self.max_realms_to_scan > 0 else 'all'} realms | Dev: {self.dev_mode}"
 
 # =====================================================
 # AUCTION UPDATE STATUS

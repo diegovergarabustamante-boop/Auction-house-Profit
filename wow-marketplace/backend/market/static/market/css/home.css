@@ -750,3 +750,22 @@ hr {
         margin: 2px 0;
     }
 }
+
+/* ====================== TEXTAREA PARA REALMS ====================== */
+#realms-textarea {
+    width: 70%;
+    max-width: 70%;
+    height: 120px;
+    padding: 8px;
+    background-color: #2d3748;
+    color: #e2e8f0;
+    border: 1px solid #4a5568;
+    border-radius: 5px;
+    box-sizing: border-box;
+    resize: vertical;
+    overflow-y: auto;
+    font-family: Arial, sans-serif;
+    font-size: 0.9em;
+    margin: 0 auto;
+    display: block;
+}
