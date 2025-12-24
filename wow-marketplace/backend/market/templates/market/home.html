@@ -138,46 +138,110 @@ Item en español,Alquimia</pre>
                 </p>
             </div>
             
-            <!-- Scan Options -->
-            <div>
-                <h4>⚙️ Scan Options</h4>
-                <table>
-                    <tr>
-                        <td style="width: 250px; padding-bottom: 15px;">
-                            <label for="max-realms-input">Max realms to scan:</label>
-                        </td>
-                        <td style="padding-bottom: 15px;">
-                            <input type="number" id="max-realms-input" min="0" max="1000" style="width: 100px; padding: 8px;">
-                            <span style="margin-left: 10px; font-size: 0.9em; color: #ccc;">
-                                (0 = all realms)
-                            </span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="padding-bottom: 15px;">
-                            <label for="dev-mode-checkbox">Development mode:</label>
-                        </td>
-                        <td style="padding-bottom: 15px;">
-                            <input type="checkbox" id="dev-mode-checkbox">
-                            <label for="dev-mode-checkbox" style="margin-left: 5px;">
-                                Limit to 10 realms max (for quick tests)
-                            </label>
-                        </td>
-                    </tr>
+<!-- Scan Options -->
+<div>
+    <h4>⚙️ Scan Options</h4>
+    <table>
+        <tr>
+            <td style="width: 250px; padding-bottom: 15px;">
+                <label for="max-realms-input">Max realms to scan:</label>
+            </td>
+            <td style="padding-bottom: 15px;">
+                <input type="number" id="max-realms-input" min="0" max="1000" style="width: 100px; padding: 8px;">
+                <span style="margin-left: 10px; font-size: 0.9em; color: #ccc;">
+                    (0 = all realms)
+                </span>
+            </td>
+        </tr>
+
+        <tr>
+            <td style="padding-bottom: 15px;">
+                <label for="dev-mode-checkbox">Development mode:</label>
+            </td>
+            <td style="padding-bottom: 15px;">
+                <input type="checkbox" id="dev-mode-checkbox">
+                <label for="dev-mode-checkbox" style="margin-left: 5px;">
+                    Limit to 10 realms max (for quick tests)
+                </label>
+            </td>
+        </tr>
+    </table>
+
+    <!-- 🔹 BOTONES AHORA JUSTO DEBAJO DE DEV MODE -->
+    <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #444; text-align: center;">
+        <button id="update-btn" style="background-color: #007bff; padding: 10px 20px; font-weight: bold;">
+            🔄 Update Auctions
+        </button>
+        <button id="save-config-btn" style="margin-left: 10px; background-color: #28a745; padding: 10px 20px; font-weight: bold;">
+            💾 Save Configuration
+        </button>
+        <button id="reset-config-btn" style="margin-left: 10px; background-color: #dc3545; padding: 10px 20px;">
+            🔄 Restore Default Values
+        </button>
+    </div>
+
+    <div id="config-status"
+         style="display: none; margin-top: 15px; padding: 12px; border-radius: 5px; font-weight: 500; text-align: center;"></div>
+</div>
+
+
                 </table>
             </div>
         </div>
-        
-        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #444;">
-            <button id="save-config-btn" style="background-color: #28a745; padding: 10px 20px; font-weight: bold;">
-                💾 Save Configuration
-            </button>
-            <button id="reset-config-btn" style="margin-left: 10px; background-color: #dc3545; padding: 10px 20px;">
-                🔄 Restore Default Values
-            </button>
+
+        <!-- Estado del escaneo en tiempo real -->
+        <div id="auction-status" style="margin-top: 20px; padding: 15px; background-color: #1e293b; border-radius: 8px; border: 1px solid #334155;">
+            <h3 style="margin-top: 0; margin-bottom: 15px; color: #60a5fa; display: flex; align-items: center; gap: 8px;">
+                <span>📊</span> Scan Status
+            </h3>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <!-- Estado actual -->
+                <div style="background: rgba(96, 165, 250, 0.1); padding: 10px; border-radius: 6px; border-left: 3px solid #60a5fa;">
+                    <div style="font-size: 0.85em; color: #94a3b8; margin-bottom: 4px;">Estado</div>
+                    <div style="font-weight: bold; color: #e2e8f0; font-size: 1.1em;">
+                        <span id="state">Idle</span>
+                    </div>
+                </div>
+                
+                <!-- Progreso de reinos -->
+                <div style="background: rgba(34, 197, 94, 0.1); padding: 10px; border-radius: 6px; border-left: 3px solid #22c55e;">
+                    <div style="font-size: 0.85em; color: #94a3b8; margin-bottom: 4px;">Progreso</div>
+                    <div style="font-weight: bold; color: #e2e8f0; font-size: 1.1em;">
+                        <span id="done">0</span>/<span id="total">0</span> reinos
+                    </div>
+                    <div style="font-size: 0.75em; color: #94a3b8; margin-top: 4px;">
+                        Reino: <span id="current" style="color: #60a5fa;">-</span>
+                    </div>
+                </div>
+                
+                <!-- Tiempo transcurrido -->
+                <div style="background: rgba(168, 85, 247, 0.1); padding: 10px; border-radius: 6px; border-left: 3px solid #a855f7;">
+                    <div style="font-size: 0.85em; color: #94a3b8; margin-bottom: 4px;">Tiempo transcurrido</div>
+                    <div style="font-weight: bold; color: #e2e8f0; font-size: 1.1em;">
+                        <span id="elapsed">0</span>s
+                    </div>
+                </div>
+                
+                <!-- Tiempo estimado -->
+                <div style="background: rgba(234, 179, 8, 0.1); padding: 10px; border-radius: 6px; border-left: 3px solid #eab308;">
+                    <div style="font-size: 0.85em; color: #94a3b8; margin-bottom: 4px;">ETA</div>
+                    <div style="font-weight: bold; color: #e2e8f0; font-size: 1.1em;">
+                        <span id="eta">0</span>s
+                    </div>
+                </div>
+                
+                <!-- Errores detectados -->
+                <div style="background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 6px; border-left: 3px solid #ef4444;">
+                    <div style="font-size: 0.85em; color: #94a3b8; margin-bottom: 4px;">Errores</div>
+                    <div style="font-weight: bold; color: #e2e8f0; font-size: 1.1em;">
+                        <span id="error-count">0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="config-info" style="font-size: 0.85em; color: #94a3b8; margin-top: 15px; padding-top: 15px; border-top: 1px solid #334155;"></div>
         </div>
-        
-        <div id="config-status" style="display: none; margin-top: 15px; padding: 12px; border-radius: 5px; font-weight: 500;"></div>
     </div>
 
     <hr>
@@ -380,21 +444,6 @@ Item en español,Alquimia</pre>
         {% else %}
         <p>No arbitrage data available yet.</p>
         {% endif %}
-    </div>
-
-    <hr>
-
-    <button id="update-btn">🔄 Update Auctions</button>
-
-    <!-- Estado del escaneo (opcional, si quieres mostrar) -->
-    <div id="auction-status" style="margin-top: 20px; padding: 10px; background-color: #1e293b; border-radius: 5px; display: none;">
-        <h3 style="margin-top: 0;">📊 Estado del Escaneo</h3>
-        <div>Estado: <span id="state">Idle</span></div>
-        <div>Reino actual: <span id="current">-</span></div>
-        <div>Progreso: <span id="done">0</span>/<span id="total">0</span> reinos</div>
-        <div>Tiempo transcurrido: <span id="elapsed">0</span> segundos</div>
-        <div>ETA: <span id="eta">0</span> segundos</div>
-        <div id="config-info" style="font-size: 0.9em; color: #94a3b8; margin-top: 5px;"></div>
     </div>
 
     <!-- JS externo -->
