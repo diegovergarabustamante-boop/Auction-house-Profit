@@ -446,7 +446,16 @@ Item en español,Alquimia</pre>
         {% endif %}
     </div>
 
-    <!-- JS externo -->
-    <script src="{% static 'market/js/home.js' %}?{% now 'U' %}"></script>
+    <!-- JS externo dividido por módulos -->
+    <script src="{% static 'market/js/core.js' %}?{% now 'U' %}"></script>
+    <script src="{% static 'market/js/utils.js' %}?{% now 'U' %}"></script>
+    <script src="{% static 'market/js/txt-import.js' %}?{% now 'U' %}"></script>
+    <script src="{% static 'market/js/config.js' %}?{% now 'U' %}"></script>
+    <script src="{% static 'market/js/auctions.js' %}?{% now 'U' %}"></script>
+    <script src="{% static 'market/js/items.js' %}?{% now 'U' %}"></script>
+    <script src="{% static 'market/js/snapshots.js' %}?{% now 'U' %}"></script>
+    <script src="{% static 'market/js/add-item.js' %}?{% now 'U' %}"></script>
+    <script src="{% static 'market/js/audio.js' %}?{% now 'U' %}"></script>
+    <script src="{% static 'market/js/collapsible.js' %}?{% now 'U' %}"></script>
 </body>
 </html>
