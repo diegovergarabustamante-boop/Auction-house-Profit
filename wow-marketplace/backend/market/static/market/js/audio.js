@@ -55,8 +55,6 @@
 
         currentAudio.play().catch(error => {
             console.log('❌ Error reproduciendo música:', error.message);
-            showAutoplayMessage();
-            if (isMusicPlaying) setTimeout(playRandomMusic, 1000);
         });
 
         isMusicPlaying = true;
@@ -100,7 +98,6 @@
             if (saved) {
                 const prefs = JSON.parse(saved);
                 currentVolume = prefs.volume ?? 10;
-                isMusicPlaying = prefs.wasPlaying ?? false;
             }
         } catch (error) {
             console.log('Error cargando preferencias:', error);
@@ -109,7 +106,7 @@
 
     function saveMusicPreferences() {
         try {
-            const prefs = { volume: currentVolume, wasPlaying: isMusicPlaying };
+            const prefs = { volume: currentVolume };
             localStorage.setItem('wowMusicPreferences', JSON.stringify(prefs));
         } catch (error) {
             console.log('Error guardando preferencias:', error);
@@ -210,7 +207,7 @@
         currentAudio.volume = currentVolume / 100;
         currentAudio.loop = false;
         currentAudio.addEventListener('ended', () => { if (isMusicPlaying) setTimeout(playNext, 500); });
-        currentAudio.play().catch(showAutoplayMessage);
+        currentAudio.play().catch(err => console.log('Play error:', err?.message || err));
         isMusicPlaying = true;
         updateMusicButton();
         updateCurrentTrackDisplay(next);
@@ -230,7 +227,7 @@
         currentAudio.volume = currentVolume / 100;
         currentAudio.loop = false;
         currentAudio.addEventListener('ended', () => { if (isMusicPlaying) setTimeout(playNext, 500); });
-        currentAudio.play().catch(showAutoplayMessage);
+        currentAudio.play().catch(err => console.log('Play error:', err?.message || err));
         isMusicPlaying = true;
         updateMusicButton();
         updateCurrentTrackDisplay(prev);
@@ -251,34 +248,7 @@
         }
     }
 
-    function showAutoplayMessage() {
-        if (document.getElementById('autoplay-message')) return;
-        const message = document.createElement('div');
-        message.id = 'autoplay-message';
-        message.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #f59e0b;
-            color: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            z-index: 1000;
-            max-width: 300px;
-            font-size: 14px;
-            cursor: pointer;
-        `;
-        message.innerHTML = `
-            <strong>🎵 Música bloqueada</strong><br>
-            Los navegadores bloquean la reproducción automática. 
-            Haz clic en "Play Music" para iniciar.
-            <span style="float: right; font-weight: bold;">×</span>
-        `;
-        message.addEventListener('click', () => message.remove());
-        setTimeout(() => message.parentNode && message.remove(), 10000);
-        document.body.appendChild(message);
-    }
+    // Autoplay message removed: playback only on user interaction
 
     function playSound(soundName) {
         const sounds = {
@@ -337,10 +307,7 @@
         }
 
         updateVolume(currentVolume);
-
-        if (isMusicPlaying) {
-            setTimeout(() => playRandomMusic(), 500);
-        }
+        // No auto-play on load; wait for user interaction
 
         document.getElementById('music-toggle-btn')?.addEventListener('click', toggleMusic);
         document.getElementById('music-next-btn')?.addEventListener('click', () => {

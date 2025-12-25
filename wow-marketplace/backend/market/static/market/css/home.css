@@ -1,7 +1,7 @@
 /* ====================== BASE ====================== */
 body {
     font-family: Arial, sans-serif;
-    background: #0f172a url("https://cdnb.artstation.com/p/assets/covers/images/001/621/567/large/tim-moreels-nomarmosetviewericon.jpg") 
+    background: #0f172a var(--bg-image, url("https://cdnb.artstation.com/p/assets/covers/images/001/621/567/large/tim-moreels-nomarmosetviewericon.jpg")) 
                 no-repeat center center fixed;
     background-size: cover;
     color: #e5e7eb;
@@ -21,6 +21,18 @@ body::before {
 body * {
     position: relative;
     z-index: 1;
+}
+
+/* Fader para transición suave de fondo */
+#bg-fader {
+    position: fixed;
+    inset: 0;
+    background: var(--bg-image, none) no-repeat center center fixed;
+    background-size: cover;
+    opacity: 0;
+    transition: opacity 800ms ease-in-out;
+    z-index: 0;
+    pointer-events: none;
 }
 
 /* ====================== TÍTULO ====================== */
