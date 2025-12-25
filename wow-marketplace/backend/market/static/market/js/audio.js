@@ -1,51 +1,56 @@
 (() => {
-    const musicTracks = [
-        '/static/market/music/mus_80_goblingreed_a.mp3',
-        '/static/market/music/mus_80_goblingreed_c.mp3',
-        '/static/market/music/mus_80_motherlode_d.mp3',
-        '/static/market/music/mus_80_motherlode_e.mp3',
-        '/static/market/music/mus_80_motherlode_h.mp3'
-    ];
-
-    const trackNames = {
-        '/static/market/music/mus_80_goblingreed_a.mp3': 'Goblin Greed A',
-        '/static/market/music/mus_80_goblingreed_c.mp3': 'Goblin Greed C',
-        '/static/market/music/mus_80_motherlode_d.mp3': 'Motherlode D',
-        '/static/market/music/mus_80_motherlode_e.mp3': 'Motherlode E',
-        '/static/market/music/mus_80_motherlode_h.mp3': 'Motherlode H'
-    };
+    let musicTracks = [];
 
     let currentAudio = null;
     let isMusicPlaying = false;
     let currentTrackIndex = -1;
     let currentVolume = 10;
     let animationInterval = null;
+    let progressInterval = null;
 
-    function playRandomMusic() {
-        if (!musicTracks.length) return;
+    async function ensurePlaylistLoaded() {
+        if (musicTracks.length) return true;
+        try {
+            const resp = await fetch('/api/music-list/');
+            const data = await resp.json();
+            if (data.ok && Array.isArray(data.tracks)) {
+                musicTracks = data.tracks.map(t => t.url);
+                // Shuffle playlist once for random order
+                for (let i = musicTracks.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [musicTracks[i], musicTracks[j]] = [musicTracks[j], musicTracks[i]];
+                }
+            }
+        } catch (e) {
+            console.log('Error fetching music list:', e);
+        }
+        return musicTracks.length > 0;
+    }
+
+    async function playRandomMusic() {
+        const hasTracks = await ensurePlaylistLoaded();
+        if (!hasTracks) return;
         if (currentAudio) {
             currentAudio.pause();
             currentAudio.currentTime = 0;
         }
 
-        let randomIndex;
-        do {
-            randomIndex = Math.floor(Math.random() * musicTracks.length);
-        } while (musicTracks.length > 1 && randomIndex === currentTrackIndex);
-
-        currentTrackIndex = randomIndex;
-        const selectedTrack = musicTracks[randomIndex];
+        // Start at a random position in the shuffled list on first play
+        if (currentTrackIndex === -1) {
+            currentTrackIndex = Math.floor(Math.random() * musicTracks.length);
+        }
+        const selectedTrack = musicTracks[currentTrackIndex];
 
         currentAudio = new Audio(selectedTrack);
         currentAudio.volume = currentVolume / 100;
         currentAudio.loop = false;
 
         currentAudio.addEventListener('ended', () => {
-            if (isMusicPlaying) setTimeout(playRandomMusic, 1000);
+            if (isMusicPlaying) setTimeout(playNext, 500);
         });
 
         currentAudio.addEventListener('error', () => {
-            if (isMusicPlaying) setTimeout(playRandomMusic, 1000);
+            if (isMusicPlaying) setTimeout(playNext, 500);
         });
 
         currentAudio.play().catch(error => {
@@ -58,6 +63,7 @@
         updateMusicButton();
         updateCurrentTrackDisplay(selectedTrack);
         startVisualizerAnimation();
+        startProgressUpdates();
         saveMusicPreferences();
     }
 
@@ -69,6 +75,7 @@
         isMusicPlaying = false;
         updateMusicButton();
         stopVisualizerAnimation();
+        stopProgressUpdates();
         saveMusicPreferences();
     }
 
@@ -83,7 +90,7 @@
     function updateMusicButton() {
         const btn = document.getElementById('music-toggle-btn');
         if (!btn) return;
-        btn.textContent = isMusicPlaying ? '🎵 Pause Music' : '🎵 Play Music';
+        btn.textContent = isMusicPlaying ? '⏸ Pause' : '▶ Play';
         btn.style.backgroundColor = isMusicPlaying ? '#f44336' : '#4CAF50';
     }
 
@@ -144,10 +151,103 @@
         if (viz) viz.style.display = 'none';
     }
 
+    function formatTime(totalSeconds) {
+        const s = Math.floor(totalSeconds || 0);
+        const m = Math.floor(s / 60);
+        const r = s % 60;
+        return `${m}:${r.toString().padStart(2, '0')}`;
+    }
+
+    function updateProgressUI() {
+        const fill = document.getElementById('music-progress-fill');
+        const curEl = document.getElementById('fp-current-time');
+        const durEl = document.getElementById('fp-duration');
+        if (!currentAudio || !fill || !curEl || !durEl) return;
+        const cur = currentAudio.currentTime || 0;
+        const dur = currentAudio.duration || 0;
+        const pct = dur > 0 ? (cur / dur) * 100 : 0;
+        fill.style.width = `${pct}%`;
+        curEl.textContent = formatTime(cur);
+        durEl.textContent = formatTime(dur);
+    }
+
+    function startProgressUpdates() {
+        stopProgressUpdates();
+        progressInterval = setInterval(updateProgressUI, 250);
+        currentAudio?.addEventListener('timeupdate', updateProgressUI);
+        currentAudio?.addEventListener('loadedmetadata', updateProgressUI);
+    }
+
+    function stopProgressUpdates() {
+        if (progressInterval) {
+            clearInterval(progressInterval);
+            progressInterval = null;
+        }
+        if (currentAudio) {
+            currentAudio.removeEventListener('timeupdate', updateProgressUI);
+            currentAudio.removeEventListener('loadedmetadata', updateProgressUI);
+        }
+    }
+
+    function seekAtClientX(clientX) {
+        const bar = document.getElementById('music-progress');
+        if (!bar || !currentAudio || !currentAudio.duration) return;
+        const rect = bar.getBoundingClientRect();
+        const ratio = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1);
+        currentAudio.currentTime = ratio * currentAudio.duration;
+        updateProgressUI();
+    }
+
+    function playNext() {
+        if (!musicTracks.length) return;
+        currentTrackIndex = (currentTrackIndex + 1) % musicTracks.length;
+        const next = musicTracks[currentTrackIndex];
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+        }
+        currentAudio = new Audio(next);
+        currentAudio.volume = currentVolume / 100;
+        currentAudio.loop = false;
+        currentAudio.addEventListener('ended', () => { if (isMusicPlaying) setTimeout(playNext, 500); });
+        currentAudio.play().catch(showAutoplayMessage);
+        isMusicPlaying = true;
+        updateMusicButton();
+        updateCurrentTrackDisplay(next);
+        startVisualizerAnimation();
+        startProgressUpdates();
+    }
+
+    function playPrev() {
+        if (!musicTracks.length) return;
+        currentTrackIndex = (currentTrackIndex - 1 + musicTracks.length) % musicTracks.length;
+        const prev = musicTracks[currentTrackIndex];
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+        }
+        currentAudio = new Audio(prev);
+        currentAudio.volume = currentVolume / 100;
+        currentAudio.loop = false;
+        currentAudio.addEventListener('ended', () => { if (isMusicPlaying) setTimeout(playNext, 500); });
+        currentAudio.play().catch(showAutoplayMessage);
+        isMusicPlaying = true;
+        updateMusicButton();
+        updateCurrentTrackDisplay(prev);
+        startVisualizerAnimation();
+        startProgressUpdates();
+    }
+
     function updateCurrentTrackDisplay(trackPath) {
         const trackNameElement = document.getElementById('current-track-name');
-        if (trackNameElement && trackNames[trackPath]) {
-            trackNameElement.textContent = trackNames[trackPath];
+        if (!trackNameElement || !trackPath) return;
+        try {
+            const parts = trackPath.split('/');
+            const file = parts[parts.length - 1];
+            const base = file.replace(/\.[^.]+$/, '');
+            trackNameElement.textContent = base.replace(/[_-]+/g, ' ');
+        } catch (e) {
+            // ignore
         }
     }
 
@@ -239,12 +339,28 @@
         updateVolume(currentVolume);
 
         if (isMusicPlaying) {
-            setTimeout(playRandomMusic, 500);
+            setTimeout(() => playRandomMusic(), 500);
         }
 
         document.getElementById('music-toggle-btn')?.addEventListener('click', toggleMusic);
+        document.getElementById('music-next-btn')?.addEventListener('click', () => {
+            if (!musicTracks.length) { playRandomMusic(); return; }
+            playNext();
+        });
+        document.getElementById('music-prev-btn')?.addEventListener('click', () => {
+            if (!musicTracks.length) { playRandomMusic(); return; }
+            playPrev();
+        });
+        const progress = document.getElementById('music-progress');
+        if (progress) {
+            progress.addEventListener('click', (e) => seekAtClientX(e.clientX));
+            let isDown = false;
+            progress.addEventListener('mousedown', (e) => { isDown = true; seekAtClientX(e.clientX); });
+            window.addEventListener('mouseup', () => { isDown = false; });
+            progress.addEventListener('mousemove', (e) => { if (isDown) seekAtClientX(e.clientX); });
+        }
     });
 
     window.App = window.App || {};
-    window.App.audio = { playSound, toggleMusic };
+    window.App.audio = { playSound, toggleMusic, playNext, playPrev };
 })();

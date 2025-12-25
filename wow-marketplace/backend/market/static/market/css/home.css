@@ -317,6 +317,64 @@ div#config-container > div:last-child {
 .profession-badge.fishing { background-color: #0abde3; }
 .profession-badge.archaeology { background-color: #576574; }
 .profession-badge.unknown { background-color: #6c757d; }
+.floating-player {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 9999;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    width: 260px;
+    padding: 10px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(2,6,23,0.6), rgba(2,6,23,0.3));
+    border: 1px solid rgba(96, 165, 250, 0.2);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+    backdrop-filter: blur(6px);
+    animation: floatIn 300ms ease-out;
+}
+
+@keyframes floatIn {
+    from { transform: translateY(-6px); opacity: 0; }
+    to   { transform: translateY(0);     opacity: 1; }
+}
+
+.fp-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.fp-controls { display: flex; align-items: center; gap: 6px; }
+.fp-btn {
+    background: rgba(96, 165, 250, 0.15);
+    color: #e5e7eb;
+    border: 1px solid rgba(96, 165, 250, 0.25);
+    border-radius: 8px;
+    padding: 6px 8px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: transform 120ms ease, background 200ms ease, box-shadow 200ms ease;
+}
+.fp-btn:hover {
+    background: rgba(96, 165, 250, 0.3);
+    box-shadow: 0 4px 12px rgba(96,165,250,0.2);
+}
+.fp-btn:active { transform: scale(0.96); }
+.fp-play { font-weight: 600; }
+
+.fp-volume { display: flex; align-items: center; gap: 6px; }
+.fp-volume input[type="range"] { width: 100px; accent-color: #60a5fa; }
+.fp-volume #volume-value { font-size: 11px; color: #a5b4fc; min-width: 30px; text-align: right; }
+
+.fp-meta { display: grid; gap: 4px; }
+.fp-visualizer { display: block; }
+.fp-bars { display: flex; gap: 2px; height: 18px; align-items: end; }
+.fp-bars .bar {
+    width: 4px; background: #60a5fa; border-radius: 2px; transition: height 200ms ease;
+}
+.fp-track { color: #c7d2fe; font-size: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.fp-progress { position: relative; height: 6px; border-radius: 6px; background: rgba(148,163,184,0.25); cursor: pointer; overflow: hidden; }
+.fp-progress-fill { position: absolute; left: 0; top: 0; height: 100%; width: 0%; background: linear-gradient(90deg,#60a5fa,#22d3ee); transition: width 200ms linear; }
+
+.fp-times { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #94a3b8; }
 
 /* Decor badge */
 .decor-badge {

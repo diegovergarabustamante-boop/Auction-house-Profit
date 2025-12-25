@@ -27,4 +27,7 @@ urlpatterns = [
     # Snapshots
     path("api/delete-snapshots/", views.delete_snapshots, name="delete_snapshots"),
     path("api/delete-all-snapshots/", views.delete_all_snapshots, name="delete_all_snapshots"),
+
+    # Music
+    path("api/music-list/", views.get_music_list, name="music_list"),
 ]

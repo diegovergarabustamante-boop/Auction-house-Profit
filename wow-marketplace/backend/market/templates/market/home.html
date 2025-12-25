@@ -12,32 +12,37 @@
 
     <h1>🪙 WoW Auction Arbitrage</h1>
 
-    <!-- Controles de música -->
-    <div style="text-align: center; margin: 10px 0; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
-        <div style="display: flex; align-items: center; justify-content: center; gap: 15px; flex-wrap: wrap;">
-            <button id="music-toggle-btn" style="padding: 8px 16px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;" title="Haz clic para reproducir música de fondo">
-                🎵 Play Music
-            </button>
-            
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="color: #a5b4fc; font-size: 12px;">🔊</span>
-                <input type="range" id="volume-slider" min="0" max="100" value="10" style="width: 100px; accent-color: #4CAF50;">
-                <span id="volume-value" style="color: #a5b4fc; font-size: 12px; min-width: 30px;">10%</span>
+    <!-- Reproductor flotante compacto -->
+    <div id="floating-player" class="floating-player">
+        <div class="fp-top">
+            <div class="fp-controls">
+                <button id="music-prev-btn" class="fp-btn" title="Anterior">⏮</button>
+                <button id="music-toggle-btn" class="fp-btn fp-play" title="Play/Pause">🎵 Play</button>
+                <button id="music-next-btn" class="fp-btn" title="Siguiente">⏭</button>
+            </div>
+            <div class="fp-volume">
+                <input type="range" id="volume-slider" min="0" max="100" value="10">
+                <span id="volume-value">10%</span>
             </div>
         </div>
-        
-        <!-- Visualización del track actual -->
-        <div id="music-visualizer" style="margin-top: 10px; display: none;">
-            <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
-                <div id="track-bars" style="display: flex; gap: 2px; height: 20px; align-items: end;">
-                    <div class="bar" style="width: 4px; background: #4CAF50; border-radius: 2px; transition: height 0.3s ease;"></div>
-                    <div class="bar" style="width: 4px; background: #4CAF50; border-radius: 2px; transition: height 0.3s ease;"></div>
-                    <div class="bar" style="width: 4px; background: #4CAF50; border-radius: 2px; transition: height 0.3s ease;"></div>
-                    <div class="bar" style="width: 4px; background: #4CAF50; border-radius: 2px; transition: height 0.3s ease;"></div>
-                    <div class="bar" style="width: 4px; background: #4CAF50; border-radius: 2px; transition: height 0.3s ease;"></div>
+        <div class="fp-meta">
+            <div id="music-visualizer" class="fp-visualizer" style="display: none;">
+                <div id="track-bars" class="fp-bars">
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
                 </div>
-                <span id="current-track-name" style="color: #a5b4fc; font-size: 12px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
             </div>
+            <span id="current-track-name" class="fp-track"></span>
+        </div>
+        <div id="music-progress" class="fp-progress" title="Haz clic para buscar">
+            <div id="music-progress-fill" class="fp-progress-fill"></div>
+        </div>
+        <div class="fp-times">
+            <span id="fp-current-time">0:00</span>
+            <span id="fp-duration">0:00</span>
         </div>
     </div>
 

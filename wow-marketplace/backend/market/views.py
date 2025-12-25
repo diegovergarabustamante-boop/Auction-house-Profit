@@ -577,3 +577,33 @@ def check_items_exist(request):
         "existing_count": len(existing_names_lower),
         "total_count": len(item_names)
     })
+
+# =====================================================
+# MUSIC LIST
+# =====================================================
+def get_music_list(request):
+    """Returns the list of music files available under static/market/music."""
+    try:
+        music_dir = os.path.join(settings.BASE_DIR, "market", "static", "market", "music")
+        if not os.path.isdir(music_dir):
+            return JsonResponse({"ok": True, "tracks": []})
+
+        allowed_exts = {".mp3", ".ogg", ".wav", ".m4a"}
+        files = []
+        for name in os.listdir(music_dir):
+            full_path = os.path.join(music_dir, name)
+            if not os.path.isfile(full_path):
+                continue
+            ext = os.path.splitext(name)[1].lower()
+            if ext in allowed_exts:
+                url = f"{settings.STATIC_URL}market/music/{name}"
+                files.append({
+                    "url": url,
+                    "name": os.path.splitext(name)[0]
+                })
+
+        # Optional: sort for deterministic order client-side can shuffle
+        files.sort(key=lambda x: x["name"].lower())
+        return JsonResponse({"ok": True, "tracks": files})
+    except Exception as e:
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
