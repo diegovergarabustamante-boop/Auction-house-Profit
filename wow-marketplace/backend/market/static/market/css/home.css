@@ -3,7 +3,7 @@ body {
     font-family: Arial, sans-serif;
     background: #0f172a var(--bg-image, url("https://cdnb.artstation.com/p/assets/covers/images/001/621/567/large/tim-moreels-nomarmosetviewericon.jpg")) 
                 no-repeat center center fixed;
-    background-size: cover;
+    background-size: var(--bg-size, cover);
     color: #e5e7eb;
     padding: 15px;  /* Reducido aún más */
     position: relative;
@@ -23,14 +23,115 @@ body * {
     z-index: 1;
 }
 
+/* ====================== ANIMACIONES DE TRANSICIÓN DE FONDO ====================== */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideFromTop {
+    from { transform: translateY(-100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes slideFromBottom {
+    from { transform: translateY(100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes slideFromLeft {
+    from { transform: translateX(-100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideFromRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes zoomIn {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes zoomOut {
+    from { transform: scale(1.2); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes rotateIn {
+    from { transform: rotate(-180deg); opacity: 0; }
+    to { transform: rotate(0deg); opacity: 1; }
+}
+
+@keyframes blurIn {
+    from { filter: blur(20px); opacity: 0; }
+    to { filter: blur(0); opacity: 1; }
+}
+
+@keyframes diagonalSlide {
+    from { transform: translate(-100%, -100%); opacity: 0; }
+    to { transform: translate(0, 0); opacity: 1; }
+}
+
+@keyframes bounceIn {
+    0% { transform: scale(0); opacity: 0; }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* ====================== CLASES DE ANIMACIÓN DINÁMICA ====================== */
+.fade-animation {
+    animation: fadeIn 800ms ease-in-out forwards;
+}
+
+.slide-top-animation {
+    animation: slideFromTop 800ms ease-in-out forwards;
+}
+
+.slide-bottom-animation {
+    animation: slideFromBottom 800ms ease-in-out forwards;
+}
+
+.slide-left-animation {
+    animation: slideFromLeft 800ms ease-in-out forwards;
+}
+
+.slide-right-animation {
+    animation: slideFromRight 800ms ease-in-out forwards;
+}
+
+.zoom-in-animation {
+    animation: zoomIn 800ms ease-in-out forwards;
+}
+
+.zoom-out-animation {
+    animation: zoomOut 800ms ease-in-out forwards;
+}
+
+.rotate-animation {
+    animation: rotateIn 800ms ease-in-out forwards;
+}
+
+.blur-animation {
+    animation: blurIn 800ms ease-in-out forwards;
+}
+
+.bounce-animation {
+    animation: bounceIn 800ms cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+}
+
+.diagonal-animation {
+    animation: diagonalSlide 800ms ease-in-out forwards;
+}
+
 /* Fader para transición suave de fondo */
 #bg-fader {
     position: fixed;
     inset: 0;
     background: var(--bg-image, none) no-repeat center center fixed;
-    background-size: cover;
+    background-size: var(--bg-size, cover);
     opacity: 0;
-    transition: opacity 800ms ease-in-out;
     z-index: 0;
     pointer-events: none;
 }
