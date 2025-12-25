@@ -256,9 +256,17 @@ def assign_icon_to_item(item, is_decor=False):
     
     console_log("🔍 Buscando icono en CSV para Blizzard ID:", item.blizzard_id)
     icon_mapping = load_icons_from_csv()
+    console_log(f"📊 Total de items en CSV: {len(icon_mapping)}")
     
-    if item.blizzard_id and str(item.blizzard_id) in icon_mapping:
-        icon_name = icon_mapping[str(item.blizzard_id)]
+    # Convertir blizzard_id a int para búsqueda
+    blizzard_id_int = None
+    try:
+        blizzard_id_int = int(item.blizzard_id) if item.blizzard_id else None
+    except (ValueError, TypeError):
+        console_log(f"⚠️ No se pudo convertir Blizzard ID a int: {item.blizzard_id}")
+    
+    if blizzard_id_int and blizzard_id_int in icon_mapping:
+        icon_name = icon_mapping[blizzard_id_int]
         console_log("✅ Icono encontrado en CSV:", icon_name)
         icon_filename = f"{icon_name}.png"
         icon_path = os.path.join(ICONS_PATH, icon_filename)
@@ -274,7 +282,10 @@ def assign_icon_to_item(item, is_decor=False):
         else:
             console_log("⚠️ Archivo no encontrado:", icon_path)
     else:
-        console_log("⚠️ No se encontró icono en CSV para Blizzard ID:", item.blizzard_id)
+        if blizzard_id_int:
+            console_log(f"⚠️ No se encontró icono en CSV para Blizzard ID {blizzard_id_int} (convertido de {item.blizzard_id})")
+        else:
+            console_log(f"⚠️ Blizzard ID inválido o vacío: {item.blizzard_id}")
 
 @require_POST
 def add_item(request):
