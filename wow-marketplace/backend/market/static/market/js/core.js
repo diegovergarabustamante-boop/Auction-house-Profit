@@ -9,6 +9,7 @@
         'url("https://cdnb.artstation.com/p/assets/covers/images/001/621/567/large/tim-moreels-nomarmosetviewericon.jpg")',
         'url("https://media1.tenor.com/m/3J4hRqiyeSgAAAAd/saulgoodman.gif")'
     ];
+    const SAUL_BACKGROUND_URL = 'https://media1.tenor.com/m/3J4hRqiyeSgAAAAd/saulgoodman.gif';
     let bgIndex = Math.floor(Math.random() * backgrounds.length);
 
     function ensureFader() {
@@ -45,7 +46,17 @@
             applyBg(nextIndex);
             fader.style.opacity = '0';
             bgIndex = nextIndex;
+            // Check if rotated to Saul Goodman and if music is active
+            const isSaulBg = backgrounds[nextIndex].includes(SAUL_BACKGROUND_URL);
+            if (isSaulBg) {
+                triggerGoodmanTrack();
+            }
         }, 800);
+    }
+
+    function triggerGoodmanTrack() {
+        // Dispatch event to trigger goodman track if music is playing
+        window.dispatchEvent(new CustomEvent('playGoodman', { detail: { url: '/static/market/music/goodman.mp3' } }));
     }
 
     document.addEventListener('DOMContentLoaded', () => {

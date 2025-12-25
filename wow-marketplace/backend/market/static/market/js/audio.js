@@ -75,6 +75,7 @@
         stopVisualizerAnimation();
         stopProgressUpdates();
         saveMusicPreferences();
+        saveTrackState();
     }
 
     function toggleMusic() {
@@ -104,10 +105,37 @@
         }
     }
 
+    function saveTrackState() {
+        try {
+            if (!currentAudio) return;
+            const state = {
+                url: currentAudio.src,
+                index: currentTrackIndex,
+                time: currentAudio.currentTime || 0
+            };
+            localStorage.setItem('wowMusicTrackState', JSON.stringify(state));
+        } catch (error) {
+            console.log('Error guardando estado de canción:', error);
+        }
+    }
+
+    function loadTrackState() {
+        try {
+            const saved = localStorage.getItem('wowMusicTrackState');
+            if (saved) {
+                return JSON.parse(saved);
+            }
+        } catch (error) {
+            console.log('Error cargando estado de canción:', error);
+        }
+        return null;
+    }
+
     function saveMusicPreferences() {
         try {
             const prefs = { volume: currentVolume };
             localStorage.setItem('wowMusicPreferences', JSON.stringify(prefs));
+            saveTrackState();
         } catch (error) {
             console.log('Error guardando preferencias:', error);
         }
@@ -252,7 +280,7 @@
 
     function playSound(soundName) {
         const sounds = {
-            cash: '/static/market/sounds/vo_goblinmale_threaten_01.ogg'
+            cash: null
         };
         try {
             if (sounds[soundName] && sounds[soundName] !== '/static/market/sounds/cash.mp3') {
@@ -297,6 +325,23 @@
         }
     }
 
+    async function restorePreviousTrack() {
+        const state = loadTrackState();
+        if (!state || !state.url) return;
+        const hasTracks = await ensurePlaylistLoaded();
+        if (!hasTracks) return;
+        const trackIdx = musicTracks.findIndex(t => t === state.url);
+        if (trackIdx === -1) return;
+        currentTrackIndex = trackIdx;
+        currentAudio = new Audio(state.url);
+        currentAudio.volume = currentVolume / 100;
+        currentAudio.currentTime = state.time;
+        currentAudio.addEventListener('ended', () => { if (isMusicPlaying) setTimeout(playNext, 500); });
+        currentAudio.addEventListener('error', () => { if (isMusicPlaying) setTimeout(playNext, 500); });
+        updateCurrentTrackDisplay(state.url);
+        startProgressUpdates();
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         loadMusicPreferences();
 
@@ -307,6 +352,8 @@
         }
 
         updateVolume(currentVolume);
+        // Restore previous track if available
+        restorePreviousTrack();
         // No auto-play on load; wait for user interaction
 
         document.getElementById('music-toggle-btn')?.addEventListener('click', toggleMusic);
@@ -323,9 +370,29 @@
             progress.addEventListener('click', (e) => seekAtClientX(e.clientX));
             let isDown = false;
             progress.addEventListener('mousedown', (e) => { isDown = true; seekAtClientX(e.clientX); });
-            window.addEventListener('mouseup', () => { isDown = false; });
+            progress.addEventListener('mouseup', () => { isDown = false; });
             progress.addEventListener('mousemove', (e) => { if (isDown) seekAtClientX(e.clientX); });
+            progress.addEventListener('mouseleave', () => { isDown = false; });
         }
+
+        // Listen for Saul Goodman background trigger
+        window.addEventListener('playGoodman', async (evt) => {
+            if (!isMusicPlaying) return;
+            const url = evt.detail?.url || '/static/market/music/goodman.mp3';
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+            }
+            currentAudio = new Audio(url);
+            currentAudio.volume = currentVolume / 100;
+            currentAudio.loop = false;
+            currentAudio.addEventListener('ended', () => { if (isMusicPlaying) setTimeout(playNext, 500); });
+            currentAudio.addEventListener('error', (e) => { if (isMusicPlaying) setTimeout(playNext, 500); });
+            currentAudio.play().catch(err => console.log('Play error:', err?.message || err));
+            updateCurrentTrackDisplay(url);
+            startVisualizerAnimation();
+            startProgressUpdates();
+        });
     });
 
     window.App = window.App || {};
