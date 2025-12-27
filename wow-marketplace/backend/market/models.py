@@ -129,11 +129,23 @@ class ItemPriceSnapshot(models.Model):
     buy_price = models.DecimalField(max_digits=12, decimal_places=2)
     estimated_sell_price = models.DecimalField(max_digits=12, decimal_places=2)
     profit = models.DecimalField(max_digits=12, decimal_places=2)
+    top_sell_realms = models.TextField(
+        blank=True,
+        default='[]',
+        help_text="JSON con top 5 reinos para vender: [{realm, price, profit}, ...]"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     
     def formatted_created_at(self):
         """Devuelve la fecha en formato DD/MM HH:MM"""
         return self.created_at.strftime("%d/%m %H:%M")
+    
+    def get_top_sell_realms(self):
+        """Retorna la lista de top reinos para vender como lista de Python"""
+        try:
+            return json.loads(self.top_sell_realms)
+        except (json.JSONDecodeError, TypeError):
+            return []
     
     def __str__(self):
         return f"{self.item.name} | {self.profit}g"

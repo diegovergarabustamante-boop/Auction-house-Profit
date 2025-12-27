@@ -42,6 +42,8 @@ def home(request):
     # Formatear las fechas para el template
     for snapshot in snapshots:
         snapshot.formatted_date = snapshot.formatted_created_at()
+        # Agregar top sell realms como lista de Python
+        snapshot.top_sell_list = snapshot.get_top_sell_realms()
     
     for item in items:
         if item.tracking:

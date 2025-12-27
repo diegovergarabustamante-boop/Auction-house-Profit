@@ -191,29 +191,35 @@ def analyze_arbitrage(prices):
     sell_realms = set(config["SELL_REALMS"])
 
     if not prices:
-        return None, None, None, 0
+        return None, None, None, 0, []
 
     buy_realm = min(prices, key=prices.get)
     buy_price = prices[buy_realm]
 
-    best_profit = 0
-    best_sell = None
-    best_sell_price = None
-
+    # Calcular profit para todos los reinos válidos
+    sell_options = []
     for realm, sell_price in prices.items():
         if sell_realms and realm not in sell_realms:
             continue  # 🔑 FILTRO SOLO AQUÍ
 
         profit = (sell_price - buy_price) * 0.95
-        if profit > best_profit:
-            best_profit = profit
-            best_sell = realm
-            best_sell_price = sell_price
+        if profit >= 1000:  # Solo reinos con profit >= 1000
+            sell_options.append({
+                'realm': realm,
+                'price': sell_price,
+                'profit': profit
+            })
 
-    if best_profit < 1000:
-        return buy_realm, None, None, 0
+    # Ordenar por profit descendente y tomar top 5
+    sell_options.sort(key=lambda x: x['profit'], reverse=True)
+    top_5_sell = sell_options[:5]
 
-    return buy_realm, best_sell, best_sell_price, best_profit
+    if not top_5_sell:
+        return buy_realm, None, None, 0, []
+
+    # El mejor es el primero
+    best = top_5_sell[0]
+    return buy_realm, best['realm'], best['price'], best['profit'], top_5_sell
 
 # =====================================================
 # MAIN
@@ -249,9 +255,19 @@ def run_update_auctions():
             continue
 
         prices = min_price_by_realm(auctions, item_id)
-        buy, sell, sell_price, profit = analyze_arbitrage(prices)
+        buy, sell, sell_price, profit, top_5 = analyze_arbitrage(prices)
 
         if sell:
+            # Convertir top_5 a formato serializable (precios en gold)
+            top_5_serialized = [
+                {
+                    'realm': opt['realm'],
+                    'price': float(opt['price'] / 10000),
+                    'profit': float(opt['profit'] / 10000)
+                }
+                for opt in top_5
+            ]
+            
             ItemPriceSnapshot.objects.create(
                 item=item,
                 best_buy_realm=ConnectedRealm.objects.get(name=buy),
@@ -259,6 +275,7 @@ def run_update_auctions():
                 buy_price=prices[buy] / 10000,
                 estimated_sell_price=sell_price / 10000,
                 profit=profit / 10000,
+                top_sell_realms=json.dumps(top_5_serialized)
             )
             created += 1
 

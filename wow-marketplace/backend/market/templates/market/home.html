@@ -49,7 +49,7 @@
 
     <!-- ===================================================== -->
     <h2 id="add-item-title" class="collapsible">➕ Agregar nuevo item</h2>
-    <div id="add-item-container">
+    <div id="add-item-container" style="display: none;">
         <table id="add-item-table">
             <thead>
                 <tr>
@@ -118,6 +118,110 @@ Item en español,Alquimia</pre>
                 </tr>
             </tbody>
         </table>
+    </div>
+
+    <hr>
+
+    <h2 id="scan-items-title" class="collapsible">🎯 Items a escanear</h2>
+    <div id="scan-items-container" style="display: none;">
+        <!-- Contenido existente de items a escanear -->
+        <table>
+            <thead>
+                <tr>
+                    <th><input type="checkbox" id="select-all-items"></th>
+                    <th>Item ID (Blizzard)</th>
+                    <th>Item</th>
+                    <th>Icono</th>
+                    <th>Profesión</th>
+                    <th>Añadido el</th>
+                    <th>Activo</th>
+                    <th>Eliminar</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr id="item-row-{{ item.id }}">
+                    <td>
+                        <input type="checkbox" class="item-check" value="{{ item.id }}" {% if item.tracking and item.tracking.active %}checked{% endif %}>
+                    </td>
+                    <td>{{ item.blizzard_id|default:"-" }}</td>
+                    <td>
+                        {{ item.name }}
+                        {% if item.icon and "inv_misc_rune" not in item.icon.url %}
+                        <span class="decor-badge" style="font-size: 0.7em; color: #ffc107; margin-left: 5px;">
+                            {% if "decor" in item.name|lower or item.tracking and item.tracking.is_decor %}
+                            🎨
+                            {% endif %}
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.icon %}
+                        <img src="{{ item.icon.url }}" alt="{{ item.name }} icon" style="width: 50px; height: 50px;">
+                        {% else %}
+                        <img src="https://wow.zamimg.com/images/wow/icons/large/inv_misc_rune_01.jpg"
+                            alt="{{ item.name }} icon"
+                            style="width: 50px; height: 50px;">
+                        {% endif %}
+                    </td>
+                    <td class="profession-cell">
+                        {% if item.profession %}
+                        <span class="profession-badge" style="
+                            background-color: {% if item.profession.name == 'Alchemy' %}#ff6b6b
+                                            {% elif item.profession.name == 'Blacksmithing' %}#4ecdc4
+                                            {% elif item.profession.name == 'Enchanting' %}#45b7d1
+                                            {% elif item.profession.name == 'Engineering' %}#96ceb4
+                                            {% elif item.profession.name == 'Herbalism' %}#feca57
+                                            {% elif item.profession.name == 'Inscription' %}#ff9ff3
+                                            {% elif item.profession.name == 'Jewelcrafting' %}#54a0ff
+                                            {% elif item.profession.name == 'Leatherworking' %}#5f27cd
+                                            {% elif item.profession.name == 'Mining' %}#8395a7
+                                            {% elif item.profession.name == 'Skinning' %}#ff9f43
+                                            {% elif item.profession.name == 'Tailoring' %}#ee5a24
+                                            {% elif item.profession.name == 'Cooking' %}#10ac84
+                                            {% elif item.profession.name == 'Fishing' %}#0abde3
+                                            {% elif item.profession.name == 'Archaeology' %}#576574
+                                            {% else %}#6c757d{% endif %};
+                            color: white;
+                            padding: 2px 6px;
+                            border-radius: 10px;
+                            font-size: 0.75em;
+                            white-space: nowrap;
+                            display: inline-block;
+                        ">
+                            {{ item.profession.name }}
+                        </span>
+                        {% else %}
+                        <span style="color: #94a3b8; font-style: italic; font-size: 0.85em;">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="date-cell" data-iso-date="{% if item.tracking %}{{ item.tracking.created_at|date:'c' }}{% endif %}">
+                        {% if item.tracking %}
+                            Cargando...
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td class="active-cell">
+                        {% if item.tracking and item.tracking.active %}
+                        <span style="color: #4CAF50; font-weight: bold;">✅</span>
+                        {% else %}
+                        <span style="color: #dc3545; font-weight: bold;">❌</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button class="delete-item-btn" data-id="{{ item.id }}">🗑️</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div style="margin-top: 15px;">
+            <button id="save-tracked">💾 Guardar selección</button>
+            <button id="delete-selected-items">🗑️ Eliminar seleccionados</button>
+            <button id="delete-all-items">🔥 Eliminar todos</button>
+        </div>
     </div>
 
     <hr>
@@ -252,110 +356,6 @@ Item en español,Alquimia</pre>
 
     <hr>
 
-    <h2 id="scan-items-title" class="collapsible">🎯 Items a escanear</h2>
-    <div id="scan-items-container" style="display: none;">
-        <!-- Contenido existente de items a escanear -->
-        <table>
-            <thead>
-                <tr>
-                    <th><input type="checkbox" id="select-all-items"></th>
-                    <th>Item ID (Blizzard)</th>
-                    <th>Item</th>
-                    <th>Icono</th>
-                    <th>Profesión</th>
-                    <th>Añadido el</th>
-                    <th>Activo</th>
-                    <th>Eliminar</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in items %}
-                <tr id="item-row-{{ item.id }}">
-                    <td>
-                        <input type="checkbox" class="item-check" value="{{ item.id }}" {% if item.tracking and item.tracking.active %}checked{% endif %}>
-                    </td>
-                    <td>{{ item.blizzard_id|default:"-" }}</td>
-                    <td>
-                        {{ item.name }}
-                        {% if item.icon and "inv_misc_rune" not in item.icon.url %}
-                        <span class="decor-badge" style="font-size: 0.7em; color: #ffc107; margin-left: 5px;">
-                            {% if "decor" in item.name|lower or item.tracking and item.tracking.is_decor %}
-                            🎨
-                            {% endif %}
-                        </span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if item.icon %}
-                        <img src="{{ item.icon.url }}" alt="{{ item.name }} icon" style="width: 50px; height: 50px;">
-                        {% else %}
-                        <img src="https://wow.zamimg.com/images/wow/icons/large/inv_misc_rune_01.jpg"
-                            alt="{{ item.name }} icon"
-                            style="width: 50px; height: 50px;">
-                        {% endif %}
-                    </td>
-                    <td class="profession-cell">
-                        {% if item.profession %}
-                        <span class="profession-badge" style="
-                            background-color: {% if item.profession.name == 'Alchemy' %}#ff6b6b
-                                            {% elif item.profession.name == 'Blacksmithing' %}#4ecdc4
-                                            {% elif item.profession.name == 'Enchanting' %}#45b7d1
-                                            {% elif item.profession.name == 'Engineering' %}#96ceb4
-                                            {% elif item.profession.name == 'Herbalism' %}#feca57
-                                            {% elif item.profession.name == 'Inscription' %}#ff9ff3
-                                            {% elif item.profession.name == 'Jewelcrafting' %}#54a0ff
-                                            {% elif item.profession.name == 'Leatherworking' %}#5f27cd
-                                            {% elif item.profession.name == 'Mining' %}#8395a7
-                                            {% elif item.profession.name == 'Skinning' %}#ff9f43
-                                            {% elif item.profession.name == 'Tailoring' %}#ee5a24
-                                            {% elif item.profession.name == 'Cooking' %}#10ac84
-                                            {% elif item.profession.name == 'Fishing' %}#0abde3
-                                            {% elif item.profession.name == 'Archaeology' %}#576574
-                                            {% else %}#6c757d{% endif %};
-                            color: white;
-                            padding: 2px 6px;
-                            border-radius: 10px;
-                            font-size: 0.75em;
-                            white-space: nowrap;
-                            display: inline-block;
-                        ">
-                            {{ item.profession.name }}
-                        </span>
-                        {% else %}
-                        <span style="color: #94a3b8; font-style: italic; font-size: 0.85em;">-</span>
-                        {% endif %}
-                    </td>
-                    <td class="date-cell" data-iso-date="{% if item.tracking %}{{ item.tracking.created_at|date:'c' }}{% endif %}">
-                        {% if item.tracking %}
-                            Cargando...
-                        {% else %}
-                            -
-                        {% endif %}
-                    </td>
-                    <td class="active-cell">
-                        {% if item.tracking and item.tracking.active %}
-                        <span style="color: #4CAF50; font-weight: bold;">✅</span>
-                        {% else %}
-                        <span style="color: #dc3545; font-weight: bold;">❌</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <button class="delete-item-btn" data-id="{{ item.id }}">🗑️</button>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        <div style="margin-top: 15px;">
-            <button id="save-tracked">💾 Guardar selección</button>
-            <button id="delete-selected-items">🗑️ Eliminar seleccionados</button>
-            <button id="delete-all-items">🔥 Eliminar todos</button>
-        </div>
-    </div>
-
-    <hr>
-
     <h2 id="arbitrage-results-title" class="collapsible">📈 Resultados de arbitraje</h2>
     <div id="arbitrage-results-container" style="display: none;">
         {% if snapshots %}
@@ -377,10 +377,11 @@ Item en español,Alquimia</pre>
             </thead>
             <tbody>
                 {% for s in snapshots %}
-                <tr>
-                    <td><input type="checkbox" class="snapshot-check" value="{{ s.id }}"></td>
+                <tr class="arbitrage-row" data-snapshot-id="{{ s.id }}" style="cursor: pointer;">
+                    <td><input type="checkbox" class="snapshot-check" value="{{ s.id }}" onclick="event.stopPropagation();"></td>
                     <td>{{ s.item.blizzard_id }}</td>
                     <td>
+                        <span style="margin-right: 5px;">▶</span>
                         {{ s.item.name }}
                         {% if s.item.icon and "inv_misc_rune" not in s.item.icon.url %}
                         <span class="decor-badge" style="font-size: 0.7em; color: #ffc107; margin-left: 5px;">
@@ -438,6 +439,46 @@ Item en español,Alquimia</pre>
                     <td>{{ s.best_sell_realm.name }}</td>
                     <td>{{ s.estimated_sell_price }} g</td>
                     <td class="profit">{{ s.profit }} g</td>
+                </tr>
+                <!-- Fila expandible con top 5 sell realms -->
+                <tr class="top-realms-row" id="top-realms-{{ s.id }}" style="display: none;">
+                    <td colspan="11" style="padding: 0; background-color: #1a1a2e;">
+                        <div style="padding: 15px; background-color: #16213e;">
+                            <h4 style="margin-top: 0; color: #4CAF50;">📊 Top 5 Reinos para Vender</h4>
+                            {% if s.top_sell_list %}
+                            <table style="width: 100%; margin: 0;">
+                                <thead>
+                                    <tr style="background-color: #0f3460;">
+                                        <th style="padding: 8px;">Ranking</th>
+                                        <th style="padding: 8px;">Reino</th>
+                                        <th style="padding: 8px;">Precio de Venta</th>
+                                        <th style="padding: 8px;">Profit</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for realm_data in s.top_sell_list %}
+                                    <tr style="background-color: {% cycle '#16213e' '#1a1a2e' %};">
+                                        <td style="padding: 8px; text-align: center;">
+                                            {% if forloop.counter == 1 %}🥇
+                                            {% elif forloop.counter == 2 %}🥈
+                                            {% elif forloop.counter == 3 %}🥉
+                                            {% else %}{{ forloop.counter }}
+                                            {% endif %}
+                                        </td>
+                                        <td style="padding: 8px; font-weight: {% if forloop.first %}bold{% else %}normal{% endif %};">
+                                            {{ realm_data.realm }}
+                                        </td>
+                                        <td style="padding: 8px; color: #4ecdc4;">{{ realm_data.price|floatformat:2 }} g</td>
+                                        <td style="padding: 8px; color: #4CAF50; font-weight: bold;">{{ realm_data.profit|floatformat:2 }} g</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                            {% else %}
+                            <p style="color: #94a3b8; font-style: italic;">No hay datos disponibles de otros reinos.</p>
+                            {% endif %}
+                        </div>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

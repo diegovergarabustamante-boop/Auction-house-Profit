@@ -940,3 +940,54 @@ hr {
     margin: 0 auto;
     display: block;
 }
+
+/* ====================== EXPANDABLE ROWS - TOP REALMS ====================== */
+.arbitrage-row {
+    transition: background-color 0.2s ease;
+}
+
+.arbitrage-row:hover {
+    background-color: rgba(96, 165, 250, 0.1) !important;
+}
+
+.arbitrage-row td:nth-child(3) {
+    user-select: none;
+}
+
+.arbitrage-row td:nth-child(3) span {
+    display: inline-block;
+    transition: transform 0.2s ease;
+    font-size: 0.8em;
+}
+
+.top-realms-row {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.top-realms-row table {
+    border-collapse: collapse;
+}
+
+.top-realms-row table th,
+.top-realms-row table td {
+    border: 1px solid #334155;
+}
+
+.top-realms-row table thead tr {
+    background-color: #0f3460 !important;
+}
+
+.top-realms-row table tbody tr:hover {
+    background-color: rgba(96, 165, 250, 0.15) !important;
+}

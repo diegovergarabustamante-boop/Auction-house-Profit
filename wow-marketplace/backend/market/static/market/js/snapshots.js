@@ -88,5 +88,27 @@
         document.getElementById('select-all-snapshots')?.addEventListener('change', e => {
             document.querySelectorAll('.snapshot-check').forEach(cb => cb.checked = e.target.checked);
         });
+
+        // Funcionalidad para expandir/colapsar top realms
+        document.querySelectorAll('.arbitrage-row').forEach(row => {
+            row.addEventListener('click', (e) => {
+                // No expandir si se hizo click en el checkbox
+                if (e.target.classList.contains('snapshot-check')) return;
+                
+                const snapshotId = row.dataset.snapshotId;
+                const detailsRow = document.getElementById(`top-realms-${snapshotId}`);
+                const arrow = row.querySelector('td:nth-child(3) span');
+                
+                if (detailsRow) {
+                    const isVisible = detailsRow.style.display !== 'none';
+                    detailsRow.style.display = isVisible ? 'none' : 'table-row';
+                    
+                    // Cambiar el icono de la flecha
+                    if (arrow) {
+                        arrow.textContent = isVisible ? '▶' : '▼';
+                    }
+                }
+            });
+        });
     });
 })();
